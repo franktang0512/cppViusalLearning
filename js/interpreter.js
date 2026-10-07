@@ -135,6 +135,8 @@ function parse(src){
       const it={name:id.v,s:id.s,ptr,ref};
       if(ref&&!is("="))throw cerr(id.s,`參考（別名）宣告時一定要綁定一個變數，例如 int &${id.v} = a;`);
       if(is("[")){next();if(is("]"))it.auto=true;else it.size=parseExpr();expect("]")}
+      if(is("[")){next();if(is("]"))throw cerr(peek().s,"二維陣列的第二個 [ ] 一定要寫大小（每一列有幾格），例如 int a[3][4]");it.size2=parseExpr();expect("]");
+        if(is("["))throw cerr(peek().s,"這個網頁還不支援三維以上的陣列")}
       if(is("=")){next();
         if(is("{"))it.list=parseBrace().items;
         else it.init=parseAssign();
@@ -260,12 +262,14 @@ function parse(src){
       const type=ptr?"ptr":base,elem=ptr?base:null;
       if(is("&")){next();ref=true}
       const id=next();if(id.t!=="id")throw cerr(id.s,"參數的型別後面要接名稱，例如 int a");
-      if(is("[")){next();if(!is("]"))parseExpr();expect("]");arr=true}
+      let arr2=null;
+      if(is("[")){next();if(!is("]"))parseExpr();expect("]");arr=true;
+        if(is("[")){next();if(is("]"))throw cerr(peek().s,"二維陣列參數的第二個 [ ] 一定要寫大小，例如 int a[][4]");arr2=parseExpr();expect("]")}}
       if(ref&&arr)throw cerr(st,"陣列參數不用加 &，本來就是同一塊記憶體");
       let def=null;
       if(is("=")){const eq=next();if(ref||arr)throw cerr(eq.s,"傳參考和陣列參數不能有預設值");def=parseAssign()}
       if(ptr&&(ref||arr))throw cerr(st,"這個網頁還不支援這種指標參數");
-      ps.push({type,elem,sdef:ptr?null:sdef,psdef:ptr?sdef:null,name:id.v,ref,arr,def,s:st});
+      ps.push({type,elem,sdef:ptr?null:sdef,psdef:ptr?sdef:null,name:id.v,ref,arr,arr2,def,s:st});
     }while(is(",")&&next());
     let seenDef=false;
     for(const pm of ps){if(pm.def)seenDef=true;else if(seenDef)throw cerr(pm.s,`有預設值的參數要放在後面：${pm.name} 前面的參數有預設值，所以 ${pm.name} 也要有預設值，或把有預設值的參數移到 ${pm.name} 後面。（呼叫時傳進去的值是從左邊開始對上參數的，前面的參數有預設值、後面的卻沒有，就對不起來了。）`)}
@@ -400,15 +404,17 @@ function run(prog,src,input){
     }else if(val.t==="struct")throw rterr(node,`不能把整個 struct 放進 ${L}。要用其中一個欄位，例如 <code>${esc(val.v.sdef.fields[0].name)}</code>：寫成 變數.${esc(val.v.sdef.fields[0].name)}。`);
   }
   const pval=(v,i)=>({t:"ptr",v:ptrTo(v,i),elem:v.type});
-  function targetLabel(pv){if(pv===null)return"（不指向任何東西）";const v=S.vars.find(x=>x.id===pv.id);return v?(v.isArr?`${v.name}[${pv.i}]`:v.name):"（已經被收回的變數）"}
+  function targetLabel(pv){if(pv===null)return"（不指向任何東西）";const v=S.vars.find(x=>x.id===pv.id);return v?cellName(v,pv.i):"（已經被收回的變數）"}
+  // 陣列第 i 格的名字：二維陣列寫成 a[列][行]
+  const cellName=(v,i)=>v.dims?`${v.name}[${Math.floor(i/v.dims[1])}][${i%v.dims[1]}]`:v.isArr?`${v.name}[${i}]`:v.name;
   function derefRef(pv,node,name){
     const N=`<code>${esc(name)}</code>`;
     if(pv===null)throw rterr(node,`${N} 是 <b>nullptr</b>，沒有指向任何東西，不能用 * 或 -&gt; 去拿值。`);
     if(pv.id<0)throw rterr(node,`${N} 還沒有給值，裡面是亂七八糟的位址（<b>野指標</b>）。用 * 去讀寫它，真正的 C++ 可能改到別人的記憶體或當掉。<br>先寫 ${esc(name)} = &amp;變數; 讓它指向一個變數。`);
     const v=S.vars.find(x=>x.id===pv.id);
     if(!v)throw rterr(node,`${N} 指向的空間已經被收回了（變數離開了範圍，或已經被 delete）→ <b>懸空指標</b>，不能再用。`);
-    if(pv.i<0||pv.i>=v.len)throw rterr(node,`<b>指標超出範圍！</b>${N} 指到了 ${esc(v.name)}[${pv.i}]，可是 ${esc(v.name)} 只有 ${v.len} 格。`,{oob:v.isArr?{id:v.id,i:pv.i}:null});
-    const label=v.isArr?`${v.name}[${pv.i}]`:v.name;
+    if(pv.i<0||pv.i>=v.len)throw rterr(node,`<b>指標超出範圍！</b>${N} 指到了 ${v.dims?`${esc(v.name)} 的第 ${pv.i} 格`:`${esc(v.name)}[${pv.i}]`}，可是 ${esc(v.name)} 只有 ${v.len} 格${v.dims?`（${v.dims[0]} × ${v.dims[1]}）`:""}。`,{oob:v.isArr&&!v.dims?{id:v.id,i:pv.i}:null});
+    const label=cellName(v,pv.i);
     if(v.sdef)return wref(v,pv.i,label);
     return{v,i:pv.i,key:v.id+":"+pv.i,label};
   }
@@ -453,6 +459,15 @@ function run(prog,src,input){
       return{v:b.v,i:b.i+fi,ft:sd.fields[fi].type,fi,key:b.v.id+":"+(b.i+fi),label:`${b.label}.${n.name}`};
     }
     if(n.k==="var"){const v=lookup(n.name,n);if(v.isArr)throw rterr(n,`<code>${esc(v.name)}</code> 是陣列，要用 ${esc(v.name)}[索引] 指定是哪一格。`);if(v.sdef)return wref(v,0,v.name);return{v,i:0,key:v.id+":0",label:v.name}}
+    if(n.k==="idx"&&n.a.k==="idx"&&n.a.a.k==="var"){
+      const v=lookup(n.a.a.name,n.a.a);
+      if(v.dims){
+        const r=Math.trunc(ev(n.a.i).v),c=Math.trunc(ev(n.i).v),[R,C]=v.dims,N=esc(v.name),f=r*C+c;
+        if(r<0||r>=R||c<0||c>=C){const hit=f>=0&&f<v.len;
+          throw rterr(n,`<b>陣列越界！</b><code>${N}</code> 是 ${R} 列 × ${C} 行：列只能是 0 ～ ${R-1}，行只能是 0 ～ ${C-1}，程式卻存取了 ${N}[${r}][${c}]。<br>真正的 C++ 不會檢查，它直接算「第 ${r<0?`(${r})`:r} × ${C} + ${c<0?`(${c})`:c} = ${f} 格」`+(hit?`，碰到的其實是 <b>${N}[${Math.floor(f/C)}][${f%C}]</b>（別的格子被偷偷讀到或改掉）。`:"，已經超出整個陣列了。"),{oob:hit?{id:v.id,i:f}:null})}
+        return{v,i:f,key:v.id+":"+f,label:`${v.name}[${r}][${c}]`};
+      }
+    }
     if(n.k==="idx"){
       if(n.a.k!=="var")throw rterr(n,"只支援「陣列名稱[索引]」的寫法");
       const v=lookup(n.a.name,n.a);
@@ -467,6 +482,7 @@ function run(prog,src,input){
         return{v,i:0,si:i,str:true,node:n,key:v.id+":c"+i,label:`${v.name}[${i}]`};
       }
       if(!v.isArr)throw rterr(n,`<code>${esc(v.name)}</code> 不是陣列，不能用 []。`);
+      if(v.dims)throw rterr(n,`<code>${esc(v.name)}</code> 是二維陣列，<code>${esc(txt(n))}</code> 是<b>一整列</b>（${v.dims[1]} 格）。要再加一個 [行] 指定是哪一格，例如 ${esc(txt(n))}[0]。`);
       const i=Math.trunc(ev(n.i).v);
       if(v.sdef&&(i<0||i>=v.len))throw rterr(n,`<b>陣列越界！</b><code>${esc(v.name)}</code> 只有 ${v.len} 個 ${esc(v.sdef.name)}（${esc(v.name)}[0] ～ ${esc(v.name)}[${v.len-1}]），程式卻存取了 ${esc(v.name)}[${i}]。`,{oob:{id:v.id,i}});
       if(v.sdef)return wref(v,i,`${v.name}[${i}]`);
@@ -516,7 +532,13 @@ function run(prog,src,input){
       case"str":return{t:"string",v:n.v};
       case"endl":throw rterr(n,"endl 只能放在 cout << 後面");
       case"var":{const v=lookup(n.name,n);if(v.isArr){if(!S.quiet)S.read.add(v.id+":0");return pval(v,0)}return load(ref(n))}
-      case"idx":case"deref":return load(ref(n));
+      case"idx":{
+        if(n.a.k==="var"){const v=lookup(n.a.name,n.a);
+          if(v.dims){const r=Math.trunc(ev(n.i).v);if(r<0||r>=v.dims[0])throw rterr(n,`<b>陣列越界！</b><code>${esc(v.name)}</code> 只有 ${v.dims[0]} 列（0 ～ ${v.dims[0]-1}），沒有第 ${r} 列。`);
+            if(!S.quiet)S.read.add(v.id+":"+r*v.dims[1]);return pval(v,r*v.dims[1])}}
+        return load(ref(n));
+      }
+      case"deref":return load(ref(n));
       case"mem":{
         if(["var","idx","mem","deref"].includes(n.obj.k))return load(ref(n));
         const o=ev(n.obj);if(o.t!=="struct")throw rterr(n,`<code>${esc(txt(n.obj))}</code> 不是 struct，不能用 .${esc(n.name)}。`);
@@ -701,6 +723,9 @@ function run(prog,src,input){
         if(a.k!=="var")throw rterr(a,pm.arr?`參數 <code>${esc(pm.name)}</code> 是陣列，這裡要放陣列的名稱。`:`參數 <code>${esc(pm.name)}</code> 是傳參考（&amp;），這裡要放一個變數，不能放算式或數字。`);
         const v=lookup(a.name,a);
         if(pm.arr&&!v.isArr)throw rterr(a,`參數 <code>${esc(pm.name)}</code> 是陣列，但 <code>${esc(a.name)}</code> 不是陣列。`);
+        if(pm.arr&&!pm.arr2&&v.dims)throw rterr(a,`<code>${esc(a.name)}</code> 是二維陣列，參數要寫成 ${esc(pm.name)}[][${v.dims[1]}]（第二個大小一定要寫）。`);
+        if(pm.arr2&&!v.dims)throw rterr(a,`參數 <code>${esc(pm.name)}</code> 是二維陣列，但 <code>${esc(a.name)}</code> 不是。`);
+        if(pm.arr2&&Math.trunc(ev(pm.arr2).v)!==v.dims[1])throw rterr(a,`參數 <code>${esc(pm.name)}</code> 每一列 ${Math.trunc(ev(pm.arr2).v)} 格，但 <code>${esc(a.name)}</code> 每一列 ${v.dims[1]} 格，對不起來。`);
         if(pm.ref&&v.isArr)throw rterr(a,`<code>${esc(a.name)}</code> 是陣列，參數要寫成 ${esc(pm.name)}[]。`);
         if((pm.sdef||v.sdef)&&pm.sdef!==v.sdef)throw rterr(a,`參數 <code>${esc(pm.name)}</code> 是 ${pm.sdef?esc(pm.sdef.name):TNAME[pm.type]}，但 <code>${esc(a.name)}</code> 是 ${v.sdef?esc(v.sdef.name):TNAME[v.type]}。`);
         return{pm,alias:v};
@@ -885,12 +910,39 @@ function run(prog,src,input){
     for(let k=0;k<F;k++)S.changed.add(v.id+":"+k);
     return `宣告 ${T} ${N}：一個變數裡面<b>綁了 ${F} 個欄位</b>：${fieldList(sd)}，${sizeNote}。`+(global?"全域的會<b>自動設成 0</b>。":sd.fields.some(f=>f.type!=="string")?"沒有給初始值 → string 欄位是空字串，其他欄位是<b>垃圾值</b>。":"");
   }
+  function decl2D(it,d,global){
+    if(d.type==="stack")throw rterr(it,"這個網頁還不支援 stack 陣列");
+    const C=Math.trunc(ev(it.size2).v);if(C<=0)throw rterr(it,"陣列大小必須大於 0");
+    let R;if(it.auto){if(!it.list)throw rterr(it,"[ ] 裡沒寫大小時，一定要給初始值");R=it.list.length}else R=Math.trunc(ev(it.size).v);
+    if(R<=0)throw rterr(it,"陣列大小必須大於 0");
+    if(R*C>200)throw rterr(it,`${R} × ${C} = ${R*C} 格，這個網頁最多只能顯示 200 格，請開小一點。`);
+    if(it.init)throw rterr(it,"二維陣列要用 { } 給初始值，例如 {{1, 2}, {3, 4}}");
+    declElem=d.elem;const v=declare(d.type,it.name,R*C,it,global);declElem=null;v.dims=[R,C];
+    const N=`<b>${esc(it.name)}</b>`,T=TNAME[d.type];
+    const head=`宣告二維陣列 ${N}：一個 <b>${R} 列 × ${C} 行</b>的表格，共 ${R*C} 格 ${T}。<code>${esc(it.name)}[i][j]</code> 是第 i 列、第 j 行那一格（列和行都從 0 開始數）。`;
+    for(let k=0;k<R*C;k++)S.changed.add(v.id+":"+k);
+    if(!it.list)return head+(global?"全域陣列會<b>自動全部設成 0</b>。":"沒有初始化 → 每一格都是<b>垃圾值</b>。");
+    const put=(f,x)=>{if(x.k==="brace")throw rterr(x,"大括號包太多層了：二維陣列最多兩層 { { } }");v.values[f]=conv(d.type,ev(x));v.init[f]=true};
+    for(let f=0;f<R*C;f++){v.values[f]=d.type==="string"?"":0;v.init[f]=true}
+    const rows=it.list.length>0&&it.list.every(x=>x.k==="brace");
+    if(rows){
+      if(it.list.length>R)throw rterr(it,`大括號裡有 ${it.list.length} 列，但 ${esc(it.name)} 只有 ${R} 列。`);
+      it.list.forEach((rw,r)=>{if(rw.items.length>C)throw rterr(rw,`第 ${r} 列給了 ${rw.items.length} 個值，但每一列只有 ${C} 格。`);rw.items.forEach((x,c)=>put(r*C+c,x))});
+      const full=it.list.length===R&&it.list.every(rw=>rw.items.length===C);
+      return head+`每一組 { } 是一列，照順序放進第 0 列、第 1 列……`+(full?"":"沒給到的格子<b>自動補 0</b>。");
+    }
+    if(it.list.some(x=>x.k==="brace"))throw rterr(it,"大括號的寫法要一致：要嘛每一列都用 { } 包起來，要嘛全部不包");
+    if(it.list.length>R*C)throw rterr(it,`大括號裡有 ${it.list.length} 個值，但 ${esc(it.name)} 只有 ${R*C} 格。`);
+    it.list.forEach((x,f)=>put(f,x));
+    return head+(it.list.length?`大括號裡沒有分列，就照順序<b>一列填滿再換下一列</b>`+(it.list.length<R*C?"，沒給到的格子自動補 0。":"。"):"<code>{ }</code> 裡什麼都沒寫 → 全部設成 0。");
+  }
   function execDecl(d,global){
     const parts=[];const T=TNAME[d.type],sz=SIZE[d.type];const B_=n=>`${n} byte${n>1?"s":""}`;
     for(const it of d.items){
       if(it.ref){parts.push(declAlias(it,d.type,d.sdef));continue}
       if(d.sdef&&!it.ptr){parts.push(declStruct(it,d.sdef,global));continue}
       if(it.ptr){parts.push(declPtr(it,d.type,global,d.sdef));continue}
+      if(it.size2){parts.push(decl2D(it,d,global));continue}
       let len=null;
       if(it.size){len=Math.trunc(ev(it.size).v);if(len<=0)throw rterr(it,"陣列大小必須大於 0");if(len>200)throw rterr(it,"這個網頁最多只能顯示 200 格的陣列，請開小一點。")}
       if(it.auto){if(it.list)len=it.list.length;else if(it.init&&it.init.k==="str"&&d.type==="char")len=it.init.v.length+1;else throw rterr(it,"[ ] 裡沒寫大小時，一定要給初始值");if(!len)throw rterr(it,"陣列大小必須大於 0")}

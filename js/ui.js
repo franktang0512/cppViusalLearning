@@ -217,6 +217,28 @@ function renderMem(s,flash){
   let h="";
   // 呼叫堆疊：全域 → main → 被呼叫的函式（最下面一層是正在執行的）
   const frames=s.frames||[{key:"main",label:"main"}],refs=s.refs||[],multi=hasG||frames.length>1||all.some(v=>v.scope==="heap");
+  // 二維陣列：先畫成表格；課程設定 flat 時，下面再畫出它在記憶體裡「攤平」的樣子
+  function gridHTML(v){
+    const[R,C]=v.dims,mk=(ST.L.markers||{})[v.name]||{},rm=mk.r||[],cm=mk.c||[],flat=!!ST.L.flat;
+    const at=(ns,i)=>ns.filter(n=>byName[n]&&byName[n].values[0]===i).join(",");
+    const oob=s.oob&&s.oob.id===v.id?s.oob.i:null;
+    const cls=f=>{const key=v.id+":"+f;return(flash&&ch.has(key)?" flash":"")+(rd.has(key)?" rd":"")+(v.init[f]?"":" g")+(f===oob?" oob":"")};
+    let t=`<table class="grid2"><tr><th></th><th></th>${Array.from({length:C},(_,c)=>`<th class="gcol"><b>${at(cm,c)}</b>[${c}]</th>`).join("")}</tr>`;
+    for(let r=0;r<R;r++){
+      t+=`<tr><th class="gmk">${at(rm,r)}</th><th class="grow">[${r}]</th>`;
+      for(let c=0;c<C;c++){const f=r*C+c;t+=`<td class="gc${cls(f)}"${flat?"":` data-k="${v.id}:${f}"`}>${esc(fmtVal(v.type,v.values[f]))}</td>`}
+      t+="</tr>";
+    }
+    t+="</table>";
+    let strip="";
+    if(flat){
+      let cells="";
+      for(let f=0;f<R*C;f++){const r=Math.floor(f/C),c=f%C;
+        cells+=`<div class="cell band${r%2}${c===0?" rs":""}${f===R*C-1?" last":""}"><div class="cv${cls(f)}" data-k="${v.id}:${f}">${esc(fmtVal(v.type,v.values[f]))}</div><div class="ci">[${r}][${c}]</div><div class="mk">${c===0?"0x"+(v.addr+f*SIZE[v.type]).toString(16):""}</div></div>`}
+      strip=`<div class="flatcap">在記憶體裡，其實是<b>一列接著一列</b>排成一長條（每格 ${SIZE[v.type]} bytes）：</div><div class="arr flat">${cells}</div>`;
+    }
+    return`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${R}][${C}]・${R} 列 × ${C} 行</span></div></div>${t}${strip}</div>`;
+  }
   // new 出來的空間：從沒有人（heap 裡）指著的節點開始，沿著指標欄位一路排下去
   function heapOrder(hs){
     const by=new Map(hs.map(v=>[v.id,v])),pointed=new Set();
@@ -262,6 +284,7 @@ function renderMem(s,flash){
     if(grp==="heap"){h+=`<div class="heaprow">${heapOrder(vs).map(heapHTML).join("")}</div>`;continue}
     for(const v of vs){
       if(v.sdef){h+=structHTML(v);continue}
+      if(v.dims){h+=gridHTML(v);continue}
       if(v.type==="stack"&&!v.isArr){
         const a=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0");
         let cells=a.map((x,i)=>{const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
@@ -282,7 +305,7 @@ function renderMem(s,flash){
       }
       if(!v.isArr){
         const key=v.id+":0",fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",g=!v.init[0];
-        const pt=v.type==="ptr"?v.values[0]:undefined,pTarget=pt===undefined?"":pt===null?"不指向任何東西":pt.id<0?"亂指（野指標）":(()=>{const t=all.find(x=>x.id===pt.id);return t?`指向 ${t.isArr?`${t.name}[${pt.i}]`:t.name}`:"指向已收回的空間（懸空指標）"})();
+        const pt=v.type==="ptr"?v.values[0]:undefined,pTarget=pt===undefined?"":pt===null?"不指向任何東西":pt.id<0?"亂指（野指標）":(()=>{const t=all.find(x=>x.id===pt.id);return t?`指向 ${t.dims?`${t.name}[${Math.floor(pt.i/t.dims[1])}][${pt.i%t.dims[1]}]`:t.isArr?`${t.name}[${pt.i}]`:t.name}`:"指向已收回的空間（懸空指標）"})();
         const extra=v.type==="char"?` ・ ASCII ${v.values[0]}`:v.type==="string"?` ・ 長度 ${v.values[0].length}`:v.type==="ptr"&&v.init[0]?` ・ <b>${esc(pTarget)}</b>`:"";
         h+=`<div class="var"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div>
           <div class="box${fl}${r}" data-k="${key}"${v.type==="ptr"?pAttr(pt):""} style="--n:${Math.min(SIZE[v.type],8)}">${"<span></span>".repeat(Math.min(SIZE[v.type],8))}<div class="val${g?" g":""}">${esc(fmtVal(v.type,v.values[0]))}</div></div>
@@ -304,6 +327,8 @@ function renderMem(s,flash){
     }
   }
   box.innerHTML=h;
+  // 攤平的長條太長時，捲到這一步有動到的那一格
+  box.querySelectorAll(".arr.flat").forEach(st=>{const c=st.querySelector(".cv.oob,.cv.flash,.cv.rd")||[...st.querySelectorAll(".cv")].find(x=>box.querySelector(`[data-p="${x.dataset.k}"]`));if(c)st.scrollLeft=Math.max(0,c.parentElement.offsetLeft-st.offsetLeft-st.clientWidth/2)});
   drawArrows();
   // 呼叫堆疊很深的時候，捲到正在執行的那一層
   const cur=[...box.querySelectorAll(".grp.fn")].pop();

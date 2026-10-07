@@ -340,3 +340,21 @@ svg.arrows circle,svg.arrows marker path{fill:var(--accent)}
 .hhead{font-size:.8rem;line-height:1.2}
 .hhead .nm{font-weight:700;font-family:var(--mono)}
 .hhead .addr{display:inline;width:auto}
+
+/* ---------- 二維陣列：表格；攤平後是一長條 ---------- */
+.grid2{border-collapse:collapse;margin:4px 0 2px 2.6em;font-family:var(--mono)}
+.grid2 td.gc{border:2.5px solid var(--ink);background:var(--box);min-width:46px;height:40px;text-align:center;font-weight:700;font-size:1.05rem;padding:0 6px}
+.grid2 td.gc.g{color:var(--garbage);font-size:.85rem}
+.grid2 td.gc.oob,.flat .cv.oob{outline:3px dashed var(--err);outline-offset:-4px;background:var(--err-bg);color:var(--err)}
+.grid2 th{font-weight:500;font-size:.78rem;color:var(--muted);padding:0 5px;white-space:nowrap}
+.grid2 .gcol b{display:block;color:var(--accent);font-size:.82rem;min-height:1.15em}
+.grid2 .gmk{color:var(--accent);font-weight:700;font-size:.82rem;text-align:right;min-width:1.6em}
+.flatcap{font-size:.8rem;color:var(--muted);margin:10px 0 0 5.6em}
+.flat .cell.band1 .cv{background:var(--next)}
+.flat .cell.rs .cv{border-left-width:4px}
+.flat .cell .ci{font-size:.6rem;letter-spacing:-.02em}
+.flat .cell .mk{font-size:.68rem;font-weight:500;color:var(--muted)}
+.arr.flat{margin-left:0;scroll-behavior:auto}
+.flat .cell{min-width:34px}
+.flat .cell .cv{height:34px;font-size:.88rem;padding:0 2px}
+.flatcap{margin-left:0}
