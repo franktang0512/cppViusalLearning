@@ -291,3 +291,15 @@ main>*{min-width:0}
 .tests td.tlabel{white-space:nowrap;font-weight:700;font-size:.85rem}
 .tests td.pick input[type=radio]{width:18px;height:18px}
 .goal{white-space:pre-line}
+/* 步數放在拖曳條旁邊，固定寬度：位數變多時按鈕列不會換行 */
+.scrubrow{display:flex;align-items:center;gap:10px;margin-top:8px}
+.scrubrow .scrub{flex:1;margin-top:0}
+.scrubrow .count{margin-left:0;flex:none;min-width:8.5em;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (min-width:1400px){#memLegend{height:4.8em;min-height:0;overflow:auto}}
+@media (min-width:1400px){
+  .io-grid{height:236px;overflow:hidden}
+  .io-grid>div{min-height:0;overflow:auto}
+}
+.grp.fn{color:var(--accent);border-bottom-color:var(--accent);margin-top:6px}
+.refrow{font-size:.85rem;padding:4px 8px;border-left:3px solid var(--accent);background:var(--next);border-radius:0 6px 6px 0}
+.nm .alias{color:var(--accent)}.nm .alias small{font-size:.7em;font-weight:500}

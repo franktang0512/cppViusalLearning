@@ -1,5 +1,6 @@
 /* ================= 介面 ================= */
 const $=id=>document.getElementById(id);
+CHAPTERS.sort((a,b)=>a.id-b.id);
 const ALL=[];CHAPTERS.forEach(ch=>(ch.lessons||[]).forEach(l=>{l.ch=ch;ALL.push(l)}));
 // 有預期輸出的課都整理成 tests 清單；題目的第一組測資就是一開始的輸入
 ALL.forEach(l=>{
@@ -32,7 +33,7 @@ function renderNav(){
 /* ---------- 語法上色 ---------- */
 function hl(s){
   if(/^\s*#/.test(s))return`<span class="pp">${esc(s)}</span>`;
-  const re=/(\/\/.*$)|("(?:[^"\\]|\\.)*"?)|('(?:[^'\\]|\\.)*'?)|\b(int|long|double|float|char|bool|void|if|else|while|for|break|continue|return|true|false|const|using|namespace)\b|\b(cin|cout|endl)\b|\b(\d+(?:\.\d+)?)\b/g;
+  const re=/(\/\/.*$)|("(?:[^"\\]|\\.)*"?)|('(?:[^'\\]|\\.)*'?)|\b(int|long|double|float|char|bool|string|stack|void|nullptr|if|else|while|for|break|continue|return|true|false|const|using|namespace)\b|\b(cin|cout|endl|getline|strlen)\b|\b(\d+(?:\.\d+)?)\b/g;
   let o="",last=0,m;
   while((m=re.exec(s))){
     o+=esc(s.slice(last,m.index));
@@ -213,34 +214,60 @@ function renderMem(s,flash){
   const all=s.vars;const hasG=all.some(v=>v.scope==="global");
   const byName={};all.forEach(v=>{if(!v.isArr)byName[v.name]=v});
   let h="";
-  for(const grp of hasG?["global","main"]:["main"]){
-    const vs=all.filter(v=>v.scope===grp);
-    if(hasG)h+=`<div class="grp">${grp==="global"?"全域變數（main 外面）":"main 裡面的變數"}</div>`;
-    if(!vs.length){h+=`<div class="empty">（沒有）</div>`;continue}
+  // 呼叫堆疊：全域 → main → 被呼叫的函式（最下面一層是正在執行的）
+  const frames=s.frames||[{key:"main",label:"main"}],refs=s.refs||[],multi=hasG||frames.length>1;
+  const names=v=>esc(v.name)+refs.filter(r=>r.tid===v.id).map(r=>`<span class="alias">、${esc(r.name)}${r.frame!==v.scope?`<small>（${esc((frames.find(f=>f.key===r.frame)||{}).label||"")}）</small>`:""}</span>`).join("");
+  for(const grp of [...(hasG?["global"]:[]),...frames.map(f=>f.key)]){
+    const vs=all.filter(v=>v.scope===grp),rs=refs.filter(r=>r.frame===grp),fi=frames.findIndex(f=>f.key===grp);
+    if(multi)h+=`<div class="grp${fi>0?" fn":""}">${grp==="global"?"全域變數（main 外面）":fi===0?"main 的變數":`${esc(frames[fi].label)}() 的變數・呼叫堆疊第 ${fi+1} 層${fi===frames.length-1?"（正在執行）":""}`}</div>`;
+    for(const r of rs)h+=`<div class="refrow"><code>${esc(r.name)}</code> ${r.arr?"是陣列參數：":r.alias?"是別名（參考）：":"是傳參考（&amp;）："}就是 ${esc(r.targetFrame)} 的 <code>${esc(r.target)}</code>，${r.arr?"同一塊記憶體，沒有複製":"不是另外一個格子"}</div>`;
+    if(!vs.length){if(!rs.length)h+=`<div class="empty">（沒有）</div>`;continue}
     for(const v of vs){
+      if(v.type==="stack"&&!v.isArr){
+        const a=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0");
+        let cells=a.map((x,i)=>{const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
+          return`<div class="cell${i===a.length-1?" last":""}"><div class="cv${fl}${r}">${esc(fmtVal(v.elem,x))}</div><div class="ci">${i===0&&a.length>1?"底":"&nbsp;"}</div><div class="mk">${i===a.length-1?"top":""}</div></div>`}).join("");
+        if(!a.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${esc(v.name)}</span> <span class="ty">stack&lt;${TNAME[v.elem]}&gt;・${a.length} 個・右邊是最上面</span></div></div><div class="arr">${cells}</div></div>`;
+        continue;
+      }
+      if(v.type==="string"&&!v.isArr){
+        const str=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0"),mk=(ST.L.markers||{})[v.name]||[];
+        const markAt=i=>mk.filter(n=>byName[n]&&byName[n].values[0]===i).join(",");
+        let cells="";
+        for(let i=0;i<str.length&&i<60;i++){const k=v.id+":c"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
+          cells+=`<div class="cell${i===str.length-1?" last":""}"><div class="cv${fl}${r}">${esc(charLit(str.charCodeAt(i)))}</div><div class="ci">[${i}]</div><div class="mk">${markAt(i)}</div></div>`}
+        if(!str.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空字串</div><div class="ci">&nbsp;</div></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${esc(v.name)}</span> <span class="ty">string・長度 ${str.length}</span></div></div><div class="arr">${cells}</div></div>`;
+        continue;
+      }
       if(!v.isArr){
         const key=v.id+":0",fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",g=!v.init[0];
-        const extra=v.type==="char"?` ・ ASCII ${v.values[0]}`:v.type==="string"?` ・ 長度 ${v.values[0].length}`:"";
+        const pt=v.type==="ptr"?v.values[0]:undefined,pTarget=pt===undefined?"":pt===null?"不指向任何東西":pt.id<0?"亂指（野指標）":(()=>{const t=all.find(x=>x.id===pt.id);return t?`指向 ${t.isArr?`${t.name}[${pt.i}]`:t.name}`:"指向已收回的變數"})();
+        const extra=v.type==="char"?` ・ ASCII ${v.values[0]}`:v.type==="string"?` ・ 長度 ${v.values[0].length}`:v.type==="ptr"&&v.init[0]?` ・ <b>${esc(pTarget)}</b>`:"";
         h+=`<div class="var"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div>
           <div class="box${fl}${r}" style="--n:${Math.min(SIZE[v.type],8)}">${"<span></span>".repeat(Math.min(SIZE[v.type],8))}<div class="val${g?" g":""}">${esc(fmtVal(v.type,v.values[0]))}</div></div>
-          <div class="meta"><div class="nm">${esc(v.name)}${g?'<span class="gtag">垃圾值</span>':""}</div><div class="ty">${TNAME[v.type]}・${SIZE[v.type]} byte${SIZE[v.type]>1?"s":""}${extra}</div></div></div>`;
+          <div class="meta"><div class="nm">${names(v)}${g?'<span class="gtag">垃圾值</span>':""}</div><div class="ty">${v.type==="ptr"?TNAME[v.elem]+"*":TNAME[v.type]}・${SIZE[v.type]} byte${SIZE[v.type]>1?"s":""}${extra}</div></div></div>`;
       }else{
         const mk=(ST.L.markers||{})[v.name]||[];
         const oob=s.oob&&s.oob.id===v.id?s.oob.i:null;
         const show=Math.min(v.len,60);
         let cells="";
-        const markAt=i=>mk.filter(n=>byName[n]&&byName[n].values[0]===i).join(",");
+        const markAt=i=>mk.filter(n=>{const x=byName[n];if(!x)return false;const q=x.values[0];return x.type==="ptr"?!!(q&&q.id===v.id&&q.i===i):q===i}).join(",");
         for(let i=0;i<show;i++){
           const key=v.id+":"+i,fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"";
           cells+=`<div class="cell${i===show-1&&oob===null?" last":""}"><div class="cv${fl}${r}${v.init[i]?"":" g"}">${esc(fmtVal(v.type,v.values[i]))}</div><div class="ci">[${i}]</div><div class="mk">${markAt(i)}</div></div>`;
         }
         if(v.len>show)cells+=`<div class="cell last"><div class="cv">…</div><div class="ci">共 ${v.len} 格</div></div>`;
         if(oob!==null)cells+=`<div class="cell oob"><div class="cv">?</div><div class="ci">[${oob}]</div><div class="mk">${markAt(oob)}</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${esc(v.name)}</span> <span class="ty">${TNAME[v.type]}[${v.len}]・每格 ${SIZE[v.type]} bytes</span></div></div><div class="arr">${cells}</div></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${v.len}]・每格 ${SIZE[v.type]} bytes</span></div></div><div class="arr">${cells}</div></div>`;
       }
     }
   }
   box.innerHTML=h;
+  // 呼叫堆疊很深的時候，捲到正在執行的那一層
+  const cur=[...box.querySelectorAll(".grp.fn")].pop();
+  if(cur&&box.scrollHeight>box.clientHeight)box.scrollTop=Math.max(0,cur.offsetTop-box.offsetTop-6);
 }
 
 function renderTT(){
