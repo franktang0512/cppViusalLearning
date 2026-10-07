@@ -12,10 +12,13 @@
 <body>
 <div class="app">
   <nav id="nav" aria-label="課程目錄"></nav>
+  <button class="nav-toggle" id="navToggle" aria-controls="nav" aria-expanded="true" title="收合目錄"></button>
   <main>
-    <div class="modebar" role="group" aria-label="切換模式">
+    <div class="modebar">
+      <div class="modes" role="group" aria-label="切換模式">
       <button class="mode-btn" id="modeCpp" aria-pressed="true">C++</button>
       <button class="mode-btn" id="modeFlow" aria-pressed="false">流程圖</button>
+      </div>
     </div>
     <div id="flowView" class="flow-view" hidden>
       <div class="flow-bar"><span class="hint">流程圖模式（目前嵌入原本的流程圖網站）</span><a class="small-btn" id="flowOpen" href="https://franktang0512.github.io/flowchart/" target="_blank" rel="noopener">在新分頁開啟</a></div>
@@ -81,9 +84,10 @@
 <script src="js/lessons/ch04-loops.js"></script>
 <script src="js/lessons/ch05-arrays.js"></script>
 <script src="js/lessons/ch06-strings.js"></script>
-<script src="js/lessons/ch09-functions.js"></script>
-<script src="js/lessons/ch10-recursion.js"></script>
-<script src="js/lessons/ch11-pointers.js"></script>
+<script src="js/lessons/ch08-functions.js"></script>
+<script src="js/lessons/ch09-recursion.js"></script>
+<script src="js/lessons/ch10-pointers.js"></script>
+<script src="js/lessons/ch11-struct.js"></script>
 <script src="js/lessons/ch12-stack.js"></script>
 <script src="js/lessons/problems-114.js"></script>
 <script src="js/lessons/upcoming.js"></script>

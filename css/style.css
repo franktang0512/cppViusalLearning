@@ -28,6 +28,16 @@ button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-vis
 code{font-family:var(--mono);font-size:.92em;background:var(--panel);padding:0 5px;border-radius:4px}
 
 .app{display:grid;grid-template-columns:280px minmax(0,1fr);height:100%}
+.app.nav-hidden{grid-template-columns:minmax(0,1fr)}
+.app.nav-hidden>nav{display:none}
+.app{position:relative}
+/* 目錄右緣中間的把手：點一下收合／拉開 */
+.nav-toggle{position:absolute;top:50%;left:280px;transform:translate(-50%,-50%);z-index:10;width:22px;height:56px;padding:0;border:1.5px solid var(--accent);border-radius:11px;background:var(--accent);color:var(--panel);font-size:1.1rem;font-weight:700;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.nav-toggle::before{content:"‹"}
+.nav-toggle:hover{filter:brightness(1.12)}
+.app.nav-hidden>.nav-toggle{left:0;transform:translateY(-50%);border-left:none;border-radius:0 11px 11px 0}
+.app.nav-hidden>.nav-toggle::before{content:"›"}
+.app.nav-hidden>main{padding-left:24px} /* 讓出把手的位置，不壓到內容 */
 /* ---------- 目錄 ---------- */
 nav{background:var(--panel);border-right:1.5px solid var(--line);overflow-y:auto;padding:18px 14px 30px}
 .brand{font-weight:900;font-size:1.3rem;line-height:1.25;margin:0 0 4px}
@@ -176,6 +186,9 @@ footer{margin-top:16px;font-size:.8rem;color:var(--muted)}
   nav{position:fixed;inset:0 auto 0 0;width:min(320px,88vw);z-index:20;transform:translateX(-105%);transition:transform .2s;padding-top:calc(18px + env(safe-area-inset-top,0px))}
   nav.open{transform:none;box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}
   .topbar{display:flex}
+  .nav-toggle{display:none}
+  .app.nav-hidden>nav{display:block}
+  .app.nav-hidden>main{padding-left:0}
   .io-grid,.cmp{grid-template-columns:1fr}
   .wrap{padding:12px 12px 30px}
 }
@@ -184,7 +197,8 @@ footer{margin-top:16px;font-size:.8rem;color:var(--muted)}
 main{display:flex;flex-direction:column}
 .modebar{position:sticky;top:0;z-index:5;display:flex;gap:0;padding:10px 22px;background:var(--bg);border-bottom:1.5px solid var(--line)}
 .mode-btn{border:1.5px solid var(--line);background:var(--panel);padding:5px 18px;font-weight:700;cursor:pointer}
-.mode-btn:first-child{border-radius:8px 0 0 8px}.mode-btn:last-child{border-radius:0 8px 8px 0;border-left:none}
+.modes{display:flex}
+#modeCpp{border-radius:8px 0 0 8px}#modeFlow{border-radius:0 8px 8px 0;border-left:none}
 .mode-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .flow-view{flex:1;display:flex;flex-direction:column;min-height:0;padding:10px 22px 16px;gap:8px}
 .flow-view[hidden]{display:none}
@@ -303,3 +317,26 @@ main>*{min-width:0}
 .grp.fn{color:var(--accent);border-bottom-color:var(--accent);margin-top:6px}
 .refrow{font-size:.85rem;padding:4px 8px;border-left:3px solid var(--accent);background:var(--next);border-radius:0 6px 6px 0}
 .nm .alias{color:var(--accent)}.nm .alias small{font-size:.7em;font-weight:500}
+
+/* ---------- struct：一排有名字的格子；指標：箭頭 ---------- */
+.sbox{display:inline-flex;margin:4px 0 2px 5.6em;padding:5px 6px 2px;border:2px dashed var(--boxline);border-radius:9px;background:var(--panel);max-width:calc(100% - 5.6em);overflow-x:auto}
+.sbox .cell{min-width:58px}
+.sbox .cell .cv{font-size:.95rem}
+.sbox .cell .cv.pv{font-size:.78rem;color:var(--accent)}
+.sbox .ci{font-weight:700}
+.sbox.oob{border-color:var(--err);color:var(--err);font-weight:700;padding:8px 14px}
+.srow{display:flex;align-items:center}
+.srow .sbox{margin:2px 0}
+.sidx{width:5.6em;flex:none;text-align:right;padding-right:8px;font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.sidx b{display:block;color:var(--accent);font-size:.82rem}
+.sidx.oob{color:var(--err);font-weight:700}
+.grp.heap{color:var(--accent);border-bottom-color:var(--accent);margin-top:6px}
+svg.arrows{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:2}
+svg.arrows .ln{fill:none;stroke:var(--accent);stroke-width:2.2;marker-end:url(#ah);opacity:.9}
+svg.arrows circle,svg.arrows marker path{fill:var(--accent)}
+.heaprow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 40px;padding:2px 0 4px 4px}
+.hnode{flex:none}
+.hnode .sbox{margin:2px 0 0;max-width:none;overflow:visible}
+.hhead{font-size:.8rem;line-height:1.2}
+.hhead .nm{font-weight:700;font-family:var(--mono)}
+.hhead .addr{display:inline;width:auto}

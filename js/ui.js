@@ -33,7 +33,7 @@ function renderNav(){
 /* ---------- 語法上色 ---------- */
 function hl(s){
   if(/^\s*#/.test(s))return`<span class="pp">${esc(s)}</span>`;
-  const re=/(\/\/.*$)|("(?:[^"\\]|\\.)*"?)|('(?:[^'\\]|\\.)*'?)|\b(int|long|double|float|char|bool|string|stack|void|nullptr|if|else|while|for|break|continue|return|true|false|const|using|namespace)\b|\b(cin|cout|endl|getline|strlen)\b|\b(\d+(?:\.\d+)?)\b/g;
+  const re=/(\/\/.*$)|("(?:[^"\\]|\\.)*"?)|('(?:[^'\\]|\\.)*'?)|\b(int|long|double|float|char|bool|string|stack|struct|new|delete|void|nullptr|if|else|while|for|break|continue|return|true|false|const|using|namespace)\b|\b(cin|cout|endl|getline|strlen)\b|\b(\d+(?:\.\d+)?)\b/g;
   let o="",last=0,m;
   while((m=re.exec(s))){
     o+=esc(s.slice(last,m.index));
@@ -201,9 +201,10 @@ function memLegend(s){
   const prev=ST.k>1?ST.trace[ST.k-2]:null,items=[];
   const fresh=s.vars.filter(v=>!prev||!prev.vars.some(p=>p.id===v.id));
   if(fresh.length){const ts=[...new Set(fresh.map(v=>v.type))].filter(t=>t!=="string");
-    if(ts.length)items.push(`每個小格代表 1 byte（${ts.map(t=>`${TNAME[t]} 佔 ${SIZE[t]} 格`).join("、")}）`)}
+    const ts2=ts.filter(t=>t!=="struct");if(ts2.length)items.push(`每個小格代表 1 byte（${ts2.map(t=>`${TNAME[t]} 佔 ${SIZE[t]} 格`).join("、")}）`)}
   if(s.vars.some(v=>v.init.some(x=>!x)))items.push("灰字＝垃圾值（還沒給過值）");
   if(s.read.length)items.push("藍框＝這一步讀取的格子");
+  if(s.vars.some(v=>v.type==="ptr"||v.sdef&&v.sdef.fields.some(f=>f.type==="ptr")))items.push("箭頭＝指標指向的地方");
   if(s.changed.length)items.push("閃黃＝這一步被改的格子");
   return items.join("。")+(items.length?"。":"");
 }
@@ -215,14 +216,52 @@ function renderMem(s,flash){
   const byName={};all.forEach(v=>{if(!v.isArr)byName[v.name]=v});
   let h="";
   // 呼叫堆疊：全域 → main → 被呼叫的函式（最下面一層是正在執行的）
-  const frames=s.frames||[{key:"main",label:"main"}],refs=s.refs||[],multi=hasG||frames.length>1;
+  const frames=s.frames||[{key:"main",label:"main"}],refs=s.refs||[],multi=hasG||frames.length>1||all.some(v=>v.scope==="heap");
+  // new 出來的空間：從沒有人（heap 裡）指著的節點開始，沿著指標欄位一路排下去
+  function heapOrder(hs){
+    const by=new Map(hs.map(v=>[v.id,v])),pointed=new Set();
+    const nextOf=v=>{if(!v.sdef)return null;const k=v.sdef.fields.findIndex(f=>f.type==="ptr");const q=k>=0&&v.init[k]?v.values[k]:null;return q&&by.get(q.id)||null};
+    hs.forEach(v=>{const n=nextOf(v);if(n&&n!==v)pointed.add(n.id)});
+    const out=[],done=new Set();
+    const walk=v=>{while(v&&!done.has(v.id)){done.add(v.id);out.push(v);v=nextOf(v)}};
+    hs.filter(v=>!pointed.has(v.id)).forEach(walk);hs.forEach(walk);
+    return out;
+  }
+  function heapHTML(v){
+    if(v.sdef)return structHTML(v);
+    const key=v.id+":0",fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"";
+    return`<div class="hnode" data-sk="${v.id}:0"><div class="hhead"><span class="nm">${esc(v.name)}</span> <span class="addr">0x${v.addr.toString(16)}</span></div><div class="sbox"><div class="cell last"><div class="cv${fl}${r}${v.init[0]?"":" g"}" data-k="${key}">${esc(fmtVal(v.type,v.values[0]))}</div><div class="ci">${TNAME[v.type]}</div></div></div></div>`;
+  }
+  // struct：一個元素是一排有名字的格子；struct 陣列一個元素一排
+  function structHTML(v){
+    const sd=v.sdef,F=sd.fields.length,mk=(ST.L.markers||{})[v.name]||[];
+    const markAt=e=>mk.filter(n=>{const x=byName[n];if(!x)return false;const q=x.values[0];return x.type==="ptr"?!!(q&&q.id===v.id&&q.i===e):q===e}).join(",");
+    const row=(e,names)=>sd.fields.map((f,k)=>{
+      const slot=e*F+k,key=v.id+":"+slot,fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",val=v.values[slot];
+      return`<div class="cell${k===F-1?" last":""}"><div class="cv${fl}${r}${v.init[slot]?"":" g"}${f.type==="ptr"?" pv":""}" data-k="${key}"${f.type==="ptr"&&v.init[slot]?pAttr(val):""}>${esc(fmtVal(f.type,val))}</div>${names?`<div class="ci">.${esc(f.name)}</div>`:""}</div>`}).join("");
+    const head=`<div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${esc(sd.name)}${v.isArr?`[${v.len}]`:""}・${v.isArr?"每個 ":""}${sd.size} bytes</span></div></div>`;
+    if(v.heap)return`<div class="hnode" data-sk="${v.id}:0"><div class="hhead"><span class="nm">${esc(v.name)}</span> <span class="addr" title="位址只是示意">0x${v.addr.toString(16)}</span></div><div class="sbox">${row(0,true)}</div></div>`;
+    if(!v.isArr)return`<div>${head}<div class="sbox" data-sk="${v.id}:0">${row(0,true)}</div></div>`;
+    const oob=s.oob&&s.oob.id===v.id?s.oob.i:null;
+    let rows="";
+    for(let e=0;e<v.len;e++)rows+=`<div class="srow"><div class="sidx">[${e}]<b>${markAt(e)}</b></div><div class="sbox" data-sk="${v.id}:${e}">${row(e,e===0)}</div></div>`;
+    if(oob!==null)rows+=`<div class="srow"><div class="sidx oob">[${oob}]<b>${markAt(oob)}</b></div><div class="sbox oob">越界</div></div>`;
+    return`<div>${head}${rows}</div>`;
+  }
   const names=v=>esc(v.name)+refs.filter(r=>r.tid===v.id).map(r=>`<span class="alias">、${esc(r.name)}${r.frame!==v.scope?`<small>（${esc((frames.find(f=>f.key===r.frame)||{}).label||"")}）</small>`:""}</span>`).join("");
-  for(const grp of [...(hasG?["global"]:[]),...frames.map(f=>f.key)]){
+  const hasH=all.some(v=>v.scope==="heap");
+  // 指標存的位址 → 畫箭頭用（data-p 指到 data-k / data-sk）
+  const pAttr=pt=>pt&&pt.id>=0&&all.some(x=>x.id===pt.id)?` data-p="${pt.id}:${pt.i}"`:"";
+  const ptrTxt=v=>v.psdef?v.psdef.name+"*":TNAME[v.elem]+"*";
+  for(const grp of [...(hasG?["global"]:[]),...frames.map(f=>f.key),...(hasH?["heap"]:[])]){
     const vs=all.filter(v=>v.scope===grp),rs=refs.filter(r=>r.frame===grp),fi=frames.findIndex(f=>f.key===grp);
-    if(multi)h+=`<div class="grp${fi>0?" fn":""}">${grp==="global"?"全域變數（main 外面）":fi===0?"main 的變數":`${esc(frames[fi].label)}() 的變數・呼叫堆疊第 ${fi+1} 層${fi===frames.length-1?"（正在執行）":""}`}</div>`;
+    if(grp==="heap"){h+=`<div class="grp heap">heap：用 new 借來的空間（沒有名字，只能靠指標找到）</div>`}
+    else if(multi)h+=`<div class="grp${fi>0?" fn":""}">${grp==="global"?"全域變數（main 外面）":fi===0?"main 的變數":`${esc(frames[fi].label)}() 的變數・呼叫堆疊第 ${fi+1} 層${fi===frames.length-1?"（正在執行）":""}`}</div>`;
     for(const r of rs)h+=`<div class="refrow"><code>${esc(r.name)}</code> ${r.arr?"是陣列參數：":r.alias?"是別名（參考）：":"是傳參考（&amp;）："}就是 ${esc(r.targetFrame)} 的 <code>${esc(r.target)}</code>，${r.arr?"同一塊記憶體，沒有複製":"不是另外一個格子"}</div>`;
     if(!vs.length){if(!rs.length)h+=`<div class="empty">（沒有）</div>`;continue}
+    if(grp==="heap"){h+=`<div class="heaprow">${heapOrder(vs).map(heapHTML).join("")}</div>`;continue}
     for(const v of vs){
+      if(v.sdef){h+=structHTML(v);continue}
       if(v.type==="stack"&&!v.isArr){
         const a=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0");
         let cells=a.map((x,i)=>{const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
@@ -243,11 +282,11 @@ function renderMem(s,flash){
       }
       if(!v.isArr){
         const key=v.id+":0",fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",g=!v.init[0];
-        const pt=v.type==="ptr"?v.values[0]:undefined,pTarget=pt===undefined?"":pt===null?"不指向任何東西":pt.id<0?"亂指（野指標）":(()=>{const t=all.find(x=>x.id===pt.id);return t?`指向 ${t.isArr?`${t.name}[${pt.i}]`:t.name}`:"指向已收回的變數"})();
+        const pt=v.type==="ptr"?v.values[0]:undefined,pTarget=pt===undefined?"":pt===null?"不指向任何東西":pt.id<0?"亂指（野指標）":(()=>{const t=all.find(x=>x.id===pt.id);return t?`指向 ${t.isArr?`${t.name}[${pt.i}]`:t.name}`:"指向已收回的空間（懸空指標）"})();
         const extra=v.type==="char"?` ・ ASCII ${v.values[0]}`:v.type==="string"?` ・ 長度 ${v.values[0].length}`:v.type==="ptr"&&v.init[0]?` ・ <b>${esc(pTarget)}</b>`:"";
         h+=`<div class="var"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div>
-          <div class="box${fl}${r}" style="--n:${Math.min(SIZE[v.type],8)}">${"<span></span>".repeat(Math.min(SIZE[v.type],8))}<div class="val${g?" g":""}">${esc(fmtVal(v.type,v.values[0]))}</div></div>
-          <div class="meta"><div class="nm">${names(v)}${g?'<span class="gtag">垃圾值</span>':""}</div><div class="ty">${v.type==="ptr"?TNAME[v.elem]+"*":TNAME[v.type]}・${SIZE[v.type]} byte${SIZE[v.type]>1?"s":""}${extra}</div></div></div>`;
+          <div class="box${fl}${r}" data-k="${key}"${v.type==="ptr"?pAttr(pt):""} style="--n:${Math.min(SIZE[v.type],8)}">${"<span></span>".repeat(Math.min(SIZE[v.type],8))}<div class="val${g?" g":""}">${esc(fmtVal(v.type,v.values[0]))}</div></div>
+          <div class="meta"><div class="nm">${names(v)}${g?'<span class="gtag">垃圾值</span>':""}</div><div class="ty">${v.type==="ptr"?ptrTxt(v):TNAME[v.type]}・${SIZE[v.type]} byte${SIZE[v.type]>1?"s":""}${extra}</div></div></div>`;
       }else{
         const mk=(ST.L.markers||{})[v.name]||[];
         const oob=s.oob&&s.oob.id===v.id?s.oob.i:null;
@@ -256,7 +295,7 @@ function renderMem(s,flash){
         const markAt=i=>mk.filter(n=>{const x=byName[n];if(!x)return false;const q=x.values[0];return x.type==="ptr"?!!(q&&q.id===v.id&&q.i===i):q===i}).join(",");
         for(let i=0;i<show;i++){
           const key=v.id+":"+i,fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"";
-          cells+=`<div class="cell${i===show-1&&oob===null?" last":""}"><div class="cv${fl}${r}${v.init[i]?"":" g"}">${esc(fmtVal(v.type,v.values[i]))}</div><div class="ci">[${i}]</div><div class="mk">${markAt(i)}</div></div>`;
+          cells+=`<div class="cell${i===show-1&&oob===null?" last":""}"><div class="cv${fl}${r}${v.init[i]?"":" g"}" data-k="${key}">${esc(fmtVal(v.type,v.values[i]))}</div><div class="ci">[${i}]</div><div class="mk">${markAt(i)}</div></div>`;
         }
         if(v.len>show)cells+=`<div class="cell last"><div class="cv">…</div><div class="ci">共 ${v.len} 格</div></div>`;
         if(oob!==null)cells+=`<div class="cell oob"><div class="cv">?</div><div class="ci">[${oob}]</div><div class="mk">${markAt(oob)}</div></div>`;
@@ -265,25 +304,78 @@ function renderMem(s,flash){
     }
   }
   box.innerHTML=h;
+  drawArrows();
   // 呼叫堆疊很深的時候，捲到正在執行的那一層
   const cur=[...box.querySelectorAll(".grp.fn")].pop();
   if(cur&&box.scrollHeight>box.clientHeight)box.scrollTop=Math.max(0,cur.offsetTop-box.offsetTop-6);
 }
 
+// 指標箭頭：從存位址的格子，畫到它指向的格子（或整個 struct）
+function drawArrows(){
+  const box=$("mem");const old=box.querySelector("svg.arrows");if(old)old.remove();
+  const srcs=[...box.querySelectorAll("[data-p]")];if(!srcs.length||!box.offsetParent)return;
+  const B=box.getBoundingClientRect(),ox=box.scrollLeft-B.left,oy=box.scrollTop-B.top;
+  // 右邊的走道：所有格子最右邊再往右一點，往 heap 的箭頭從這裡往下走
+  const gut=Math.max(...[...box.querySelectorAll(".box,.sbox")].filter(e=>!e.closest(".heaprow")).map(e=>e.getBoundingClientRect().right))+ox+16;
+  let paths="",nk=0;
+  for(const s of srcs){
+    const t=box.querySelector(`[data-sk="${s.dataset.p}"]`)||box.querySelector(`[data-k="${s.dataset.p}"]`);if(!t)continue;
+    const a=s.getBoundingClientRect(),b=t.getBoundingClientRect(),k=nk++;
+    let x1=a.right+ox-4;const y1=a.top+a.height/2+oy;
+    const stacked=t.matches(".box")||t.dataset.sk&&!t.closest(".heaprow"),toHeap=!!t.closest(".heaprow")&&!s.closest(".heaprow");
+    let d;
+    if(s.matches(".box")&&stacked&&!(b.top<a.bottom-4&&b.bottom>a.top+4)){
+      // 上下排的變數：從左邊（位址旁的空隙）繞過去，不會蓋到變數名稱
+      x1=a.left+ox+4;const x2=b.left+ox-1,y2=b.top+b.height/2+oy,lx=Math.min(a.left,b.left)+ox-14-5*(k%3);
+      d=`M${x1},${y1} C${lx},${y1} ${lx},${y2} ${x2},${y2}`;
+    }else if(toHeap){
+      // 往 heap：先往右走到走道，沿著走道往下，再從上面進到節點
+      const gx=Math.max(gut,x1+12)+7*(k%5),x2=b.left+Math.min(b.width/2,34)+ox,below=b.top>=a.bottom-4,y2=(below?b.top-1:b.bottom+1)+oy,sg=below?1:-1;
+      d=`M${x1},${y1} C${gx},${y1} ${gx},${y1} ${gx},${y1+14*sg} L${gx},${y2-34*sg} C${gx},${y2-12*sg} ${x2},${y2-30*sg} ${x2},${y2}`;
+    }else if(b.top<a.bottom-4&&b.bottom>a.top+4){
+      // 同一排：在右邊就直直畫過去，在左邊（或指向自己）就從下面繞回來
+      const y2=b.top+b.height/2+oy;
+      if(b.left+ox>x1+8){const x2=b.left+ox-1,m=(x1+x2)/2;d=`M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`}
+      else{const x2=b.left+ox+10,y3=b.bottom+oy+1,low=Math.max(a.bottom,b.bottom)+oy+34;d=`M${x1},${y1} C${x1+40},${y1} ${x1+30},${low} ${(x1+x2)/2},${low} S${x2},${y3+30} ${x2},${y3}`}
+    }else if(t.matches(".box")||t.dataset.sk&&!t.closest(".heaprow")){
+      // 一般變數、struct：從右邊繞過去，箭頭從右邊進去
+      const x2=b.right+ox+1,y2=b.top+b.height/2+oy,cx=Math.max(a.right,b.right)+ox+22+Math.min(50,Math.abs(y2-y1)*.12);
+      d=`M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+    }else if(s.matches(".box")&&t.closest(".cell")){
+      // 指標 → 陣列的某一格：從指標格子的上緣（或下緣）直直接到那一格的下面（或上面）
+      const cell=t.closest(".cell").getBoundingClientRect(),below=b.top>=a.bottom-4,x2=b.left+b.width/2+ox;
+      const sx=Math.min(Math.max(x2,a.left+ox+18),a.right+ox-18),sy=(below?a.bottom:a.top)+oy,y2=(below?b.top-1:cell.bottom+1)+oy,k=Math.max(14,Math.abs(y2-sy)/2);
+      x1=sx;d=`M${sx},${sy} C${sx},${below?sy+k:sy-k} ${x2},${below?y2-k:y2+k} ${x2},${y2}`;
+      paths+=`<path class="ln" d="${d}"/><circle cx="${sx}" cy="${sy}" r="3.5"/>`;continue;
+    }else{
+      // 陣列的格子、heap 的節點：從上面或下面進去
+      const below=b.top>=a.bottom-4,x2=b.left+Math.min(b.width/2,34)+ox,y2=(below?b.top-1:b.bottom+1)+oy,k=Math.max(30,Math.abs(y2-y1)/2);
+      d=`M${x1},${y1} C${x1+50},${y1} ${x2},${below?y2-k:y2+k} ${x2},${y2}`;
+    }
+    paths+=`<path class="ln" d="${d}"/><circle cx="${x1}" cy="${y1}" r="3.5"/>`;
+  }
+  box.insertAdjacentHTML("beforeend",`<svg class="arrows" width="${box.scrollWidth}" height="${box.scrollHeight}" aria-hidden="true"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${paths}</svg>`);
+}
+addEventListener("resize",()=>drawArrows());
 function renderTT(){
   const k=ST.k,T=ST.trace;
   if(!k){$("tt").innerHTML=`<div class="empty">開始執行後，這裡會列出每一步的變數值。</div>`;return}
   const cols=[];const seenC=new Set();
-  for(let i=0;i<k;i++)for(const v of T[i].vars)if(!v.isArr&&!seenC.has(v.name)){seenC.add(v.name);cols.push(v.name)}
-  let h=`<table class="tt"><thead><tr><th>步</th><th>行</th>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}<th style="text-align:left">印出</th></tr></thead><tbody>`;
+  for(let i=0;i<k;i++)for(const v of T[i].vars){
+    if(v.isArr||v.heap)continue;
+    const cs=v.sdef?v.sdef.fields.map((f,fi)=>({name:v.name,fi,ft:f.type,label:v.name+"."+f.name})):[{name:v.name,fi:null,label:v.name}];
+    for(const c of cs)if(!seenC.has(c.label)){seenC.add(c.label);cols.push(c)}
+  }
+  let h=`<table class="tt"><thead><tr><th>步</th><th>行</th>${cols.map(c=>`<th>${esc(c.label)}</th>`).join("")}<th style="text-align:left">印出</th></tr></thead><tbody>`;
   const from=Math.max(0,k-300);
   for(let i=from;i<k;i++){
     const s=T[i],ch=new Set(s.changed),prev=i?T[i-1].out:"";
     const o=s.out.slice(prev.length).replace(/ /g,"␣").replace(/\n/g,"↵");
     h+=`<tr${i===k-1?' class="now"':""}><td>${i+1}</td><td>${s.line||""}</td>`+cols.map(c=>{
-      let v=null;for(const x of s.vars)if(!x.isArr&&x.name===c)v=x;
+      let v=null;for(const x of s.vars)if(!x.isArr&&!x.heap&&x.name===c.name&&!!x.sdef===(c.fi!==null))v=x;
       if(!v)return"<td></td>";
-      return`<td${ch.has(v.id+":0")?' class="ch"':""}>${esc(v.init[0]?fmtVal(v.type,v.values[0]):"?")}</td>`;
+      const j=c.fi??0,t=c.fi!==null?c.ft:v.type;
+      return`<td${ch.has(v.id+":"+j)?' class="ch"':""}>${esc(v.init[j]?fmtVal(t,v.values[j]):"?")}</td>`;
     }).join("")+`<td class="o">${esc(o)}</td></tr>`;
   }
   $("tt").innerHTML=h+"</tbody></table>";
@@ -352,11 +444,19 @@ $("play").onclick=()=>{
 };
 $("editBtn").onclick=()=>{stop();ST.editing=!ST.editing;render(false)};
 $("wsBtn").onclick=()=>{ST.ws=!ST.ws;render(false)};
-$("tabMem").onclick=()=>{$("memView").hidden=false;$("ttView").hidden=true;$("tabMem").setAttribute("aria-pressed","true");$("tabTT").setAttribute("aria-pressed","false")};
+$("tabMem").onclick=()=>{$("memView").hidden=false;$("ttView").hidden=true;$("tabMem").setAttribute("aria-pressed","true");$("tabTT").setAttribute("aria-pressed","false");drawArrows()};
 $("tabTT").onclick=()=>{$("memView").hidden=true;$("ttView").hidden=false;$("tabMem").setAttribute("aria-pressed","false");$("tabTT").setAttribute("aria-pressed","true");renderTT()};
 $("prevL").onclick=()=>{const i=ALL.indexOf(ST.L);if(i>0)openLesson(ALL[i-1].id)};
 $("nextL").onclick=()=>{const i=ALL.indexOf(ST.L);if(i<ALL.length-1)openLesson(ALL[i+1].id)};
 $("menu").onclick=()=>$("nav").classList.toggle("open");
+// 寬螢幕：整個左側目錄收合／展開，記住上次的狀態
+function setNavHidden(h){
+  document.querySelector(".app").classList.toggle("nav-hidden",h);
+  $("navToggle").setAttribute("aria-expanded",!h);$("navToggle").title=h?"展開目錄":"收合目錄";
+  store.set("ckviz-nav-hidden",h);
+}
+setNavHidden(store.get("ckviz-nav-hidden",false));
+$("navToggle").onclick=()=>setNavHidden(!document.querySelector(".app").classList.contains("nav-hidden"));
 document.addEventListener("keydown",e=>{
   if(/TEXTAREA|INPUT/.test(e.target.tagName))return;
   if(e.key==="ArrowRight"&&!$("next").disabled){e.preventDefault();$("next").click()}
