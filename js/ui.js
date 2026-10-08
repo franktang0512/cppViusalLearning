@@ -20,7 +20,7 @@ function renderNav(){
     if(ch.part!==part){part=ch.part;h+=`<div class="part">${part}</div>`}
     if(ch.lessons){
       h+=`<div class="ch"><div class="ch-title"><span class="ch-no">${ch.id}</span>${ch.title}</div><ul class="ls">`+
-        ch.lessons.map(l=>`<li><button data-l="${l.id}" aria-current="${ST.L&&ST.L.id===l.id}"><span class="lid">${l.id}</span><span>${l.title}</span>${l.example?'<span class="ex-tag">例題</span>':""}${seen.has(l.id)?'<span class="seen">✓</span>':""}</button></li>`).join("")+`</ul></div>`;
+        ch.lessons.map(l=>`<li><button data-l="${l.id}" aria-current="${ST.L&&ST.L.id===l.id}"><span class="lid">${l.id}</span><span>${l.title}</span>${l.example?'<span class="ex-tag">例題</span>':""}${seen.has(l.id)?'<span class="seen">✓</span>':""}</button></li>`).join("")+`</ul>${ch.soon&&ch.soon.length?`<div class="soon-more"><span class="soon-tag">製作中</span><ul class="soon-list">${ch.soon.map(x=>`<li>${x}</li>`).join("")}</ul></div>`:""}</div>`;
     }else{
       h+=`<div class="ch soon"><div class="ch-title"><span class="ch-no">${ch.id}</span>${ch.title}<span class="soon-tag">製作中</span></div>`+
         (ch.soon.length?`<ul class="soon-list">${ch.soon.map(s=>`<li>${s}</li>`).join("")}</ul>`:"")+`</div>`;
@@ -254,6 +254,29 @@ function renderMem(s,flash){
     const key=v.id+":0",fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"";
     return`<div class="hnode" data-sk="${v.id}:0"><div class="hhead"><span class="nm">${esc(v.name)}</span> <span class="addr">0x${v.addr.toString(16)}</span></div><div class="sbox"><div class="cell last"><div class="cv${fl}${r}${v.init[0]?"":" g"}" data-k="${key}">${esc(fmtVal(v.type,v.values[0]))}</div><div class="ci">${TNAME[v.type]}</div></div></div></div>`;
   }
+  // 樹狀圖：每個節點是 struct、有兩個指標欄位（左、右）時，畫成一層一層的樹
+  function treeHTML(hs){
+    if(!hs.length||!hs.every(v=>v.sdef&&v.sdef.fields.filter(f=>f.type==="ptr").length>=2))return null;
+    const by=new Map(hs.map(v=>[v.id,v])),kids=new Map(),pointed=new Set();
+    for(const v of hs){
+      const ps=v.sdef.fields.map((f,k)=>f.type==="ptr"?k:-1).filter(k=>k>=0).slice(0,2);
+      const ks=ps.map(k=>{const q=v.init[k]?v.values[k]:null;return q&&q.id>=0&&by.has(q.id)?by.get(q.id):null});
+      kids.set(v.id,ks);ks.forEach(c=>{if(c&&c!==v)pointed.add(c.id)});
+    }
+    const pos=new Map();let col=0,maxD=0;
+    const place=(v,d)=>{if(!v||pos.has(v.id))return;pos.set(v.id,null);const[l,r]=kids.get(v.id);place(l,d+1);pos.set(v.id,{x:col++,d});maxD=Math.max(maxD,d);place(r,d+1)};
+    hs.filter(v=>!pointed.has(v.id)).forEach(v=>place(v,0));hs.forEach(v=>place(v,0));
+    // 有哪些（不在 heap 裡的）指標變數指著這個節点
+    const who=v=>all.filter(x=>x.type==="ptr"&&!x.heap&&!x.isArr&&x.init[0]&&x.values[0]&&x.values[0].id===v.id).map(x=>esc(x.name));  // 指著這個節點的指標變數
+    const DX=60,DY=76,W=(col-1)*DX+132,H=maxD*DY+66;
+    const nodes=hs.map(v=>{const q=pos.get(v.id),sd=v.sdef;
+      const cells=sd.fields.map((f,k)=>{const key=v.id+":"+k,fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",val=v.values[k],isP=f.type==="ptr";
+        const txt=!v.init[k]?"?":isP?(val===null?"∅":"●"):fmtVal(f.type,val);
+        return`<div class="cell${k===sd.fields.length-1?" last":""}"><div class="cv${fl}${r}${v.init[k]?"":" g"}${isP?" pv":""}" data-k="${key}"${isP&&v.init[k]?pAttr(val):""}>${esc(txt)}</div><div class="ci">${esc(f.name)}</div></div>`}).join("");
+      const w=who(v);
+      return`<div class="tnode" style="left:${q.x*DX}px;top:${q.d*DY}px"><div class="twho">${w.join("、")||"&nbsp;"}</div><div class="hnode" data-sk="${v.id}:0" title="${esc(v.name)}・0x${v.addr.toString(16)}"><div class="sbox">${cells}</div></div></div>`}).join("");
+    return`<div class="tlegend">● 指向一個節點，∅ 是 nullptr（沒有孩子）。節點上面的名字是正在指著它的指標。</div><div class="htree" style="width:${W}px;height:${H}px">${nodes}</div>`;
+  }
   // struct：一個元素是一排有名字的格子；struct 陣列一個元素一排
   function structHTML(v){
     const sd=v.sdef,F=sd.fields.length,mk=(ST.L.markers||{})[v.name]||[];
@@ -281,7 +304,7 @@ function renderMem(s,flash){
     else if(multi)h+=`<div class="grp${fi>0?" fn":""}">${grp==="global"?"全域變數（main 外面）":fi===0?"main 的變數":`${esc(frames[fi].label)}() 的變數・呼叫堆疊第 ${fi+1} 層${fi===frames.length-1?"（正在執行）":""}`}</div>`;
     for(const r of rs)h+=`<div class="refrow"><code>${esc(r.name)}</code> ${r.arr?"是陣列參數：":r.alias?"是別名（參考）：":"是傳參考（&amp;）："}就是 ${esc(r.targetFrame)} 的 <code>${esc(r.target)}</code>，${r.arr?"同一塊記憶體，沒有複製":"不是另外一個格子"}</div>`;
     if(!vs.length){if(!rs.length)h+=`<div class="empty">（沒有）</div>`;continue}
-    if(grp==="heap"){h+=`<div class="heaprow">${heapOrder(vs).map(heapHTML).join("")}</div>`;continue}
+    if(grp==="heap"){const tr=treeHTML(vs);h+=tr?`<div class="heaprow treerow">${tr}</div>`:`<div class="heaprow">${heapOrder(vs).map(heapHTML).join("")}</div>`;continue}
     for(const v of vs){
       if(v.sdef){h+=structHTML(v);continue}
       if(v.dims){h+=gridHTML(v);continue}
@@ -370,7 +393,13 @@ function renderMem(s,flash){
   });
   // 呼叫堆疊很深的時候，捲到正在執行的那一層
   const cur=[...box.querySelectorAll(".grp.fn")].pop();
-  if(cur&&box.scrollHeight>box.clientHeight)box.scrollTop=Math.max(0,cur.offsetTop-box.offsetTop-6);
+  // 但如果函式拿到的是陣列（同一塊記憶體），陣列畫在上面，這時候不要捲走，讓陣列一直看得到
+  const arrParam=(s.refs||[]).some(r=>r.arr);
+  if(cur&&!arrParam&&box.scrollHeight>box.clientHeight)box.scrollTop=Math.max(0,cur.offsetTop-box.offsetTop-6);
+  else if(arrParam)box.scrollTop=0;
+  // 有樹狀圖的時候，捲到樹那裡（指標變數的名字已經標在節點上面了）
+  const tr=box.querySelector(".htree");
+  if(tr&&box.scrollHeight>box.clientHeight)box.scrollTop=Math.max(0,tr.offsetTop-box.offsetTop-44);
 }
 
 // 指標箭頭：從存位址的格子，畫到它指向的格子（或整個 struct）
@@ -387,6 +416,11 @@ function drawArrows(){
     let x1=a.right+ox-4;const y1=a.top+a.height/2+oy;
     const stacked=t.matches(".box")||t.dataset.sk&&!t.closest(".heaprow"),toHeap=!!t.closest(".heaprow")&&!s.closest(".heaprow");
     let d;
+    if(s.closest(".htree")&&t.closest(".htree")){
+      const sx=a.left+a.width/2+ox,sy=a.bottom+oy-2,x2=b.left+b.width/2+ox,y2=b.top+oy-1,k=Math.max(16,(y2-sy)/2);
+      d=`M${sx},${sy} C${sx},${sy+k} ${x2},${y2-k} ${x2},${y2}`;
+      paths+=`<path class="ln" d="${d}"/><circle cx="${sx}" cy="${sy}" r="3"/>`;continue;
+    }
     if(s.matches(".box")&&stacked&&!(b.top<a.bottom-4&&b.bottom>a.top+4)){
       // 上下排的變數：從左邊（位址旁的空隙）繞過去，不會蓋到變數名稱
       x1=a.left+ox+4;const x2=b.left+ox-1,y2=b.top+b.height/2+oy,lx=Math.min(a.left,b.left)+ox-14-5*(k%3);

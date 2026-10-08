@@ -376,3 +376,19 @@ svg.arrows circle,svg.arrows marker path{fill:var(--accent)}
 .arr.list .lnk{align-self:flex-start;padding:10px 4px 0;color:var(--accent);font-weight:700}
 .arr.list .cell .cv{border-radius:8px}
 .vrow .arr{margin:0}
+@media (min-width:1400px){.arr{margin-left:4.2em}.cell{min-width:40px}}
+.soon-more{padding:0 0 4px 30px}.soon-more .soon-tag{margin:0 0 0 8px}
+/* 樹狀圖 */
+.treerow{display:block}
+.tlegend{font-size:.75rem;color:var(--muted);margin:2px 0 6px}
+.htree{position:relative;margin:4px 0 8px 4px}
+.htree .tnode{position:absolute}
+.htree .twho{font-family:var(--mono);font-size:.75rem;font-weight:700;color:var(--accent);min-height:1.1em;text-align:center}
+.htree .hnode{margin:0}
+.htree .cell{min-width:34px}
+.htree .cell .cv{height:32px;font-size:.9rem}
+.htree .cell .ci{font-size:.68rem}
+.htree .cell{min-width:38px}
+.htree .cell .cv{height:28px}
+.htree .cell .ci{font-size:.66rem;letter-spacing:-.02em}
+.htree .twho{position:relative;z-index:3}.htree .twho:not(:empty){background:var(--panel);border-radius:4px;padding:0 3px;width:max-content;margin:0 auto}

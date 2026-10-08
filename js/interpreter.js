@@ -16,6 +16,7 @@ function fmtVal(t,v){
   if(t==="char")return charLit(v);
   if(t==="bool")return v?"true":"false";
   if(t==="string")return`"${v}"`;
+  if(t==="iter")return`${v.label} 的第 ${v.i} 個的位置`;
   if(CONTS.includes(t))return`[${v.map(x=>Array.isArray(x)?`[${x.join(", ")}]`:x).join(", ")}]`;
   if(t==="ptr")return v===null?"nullptr":"0x"+v.addr.toString(16);
   if(t==="struct")return`{${v.vals.map((x,i)=>fmtVal(v.sdef.fields[i].type,x)).join(", ")}}`;
@@ -256,11 +257,14 @@ function parse(src){
     if(t.t==="id"){
       if(t.v==="endl")return{k:"endl",s:t.s,e:t.e};
       if(t.v==="nullptr"||t.v==="NULL")return{k:"lit",val:{t:"ptr",v:null},s:t.s,e:t.e};
+      if(t.v==="greater"&&is("<")){next();parseType();closeAngle();expect("(");const c=expect(")");return{k:"greater",s:t.s,e:c.e}}
       if(t.v==="getline"&&is("(")){next();skipStd();const c0=next();
         if(c0.v!=="cin")throw cerr(c0.s,"getline 的寫法是 getline(cin, 變數)");
         expect(",");const x=parsePostfix();if(!["var","idx","mem"].includes(x.k))throw cerr(x.s,"getline 的第二個參數要是 string 變數");
         const c=expect(")");return{k:"getline",x,s:t.s,e:c.e}}
       if(is("(")){next();const args=[];if(!is(")")){do{args.push(parseAssign())}while(is(",")&&next())}const c=expect(")");
+        if(t.v==="sort")return{k:"sortcall",args,s:t.s,e:c.e};
+        if(["lower_bound","upper_bound","binary_search"].includes(t.v))return{k:"bsearch",f:t.v,args,s:t.s,e:c.e};
         if(!MATH[t.v]){calls.push({f:t.v,s:t.s});return{k:"ucall",f:t.v,args,s:t.s,e:c.e}}
         return{k:"call",f:t.v,args,s:t.s,e:c.e}}
       return{k:"var",name:t.v,s:t.s,e:t.e};
@@ -437,6 +441,12 @@ function run(prog,src,input){
     return{v,i:pv.i,key:v.id+":"+pv.i,label};
   }
   function arith(op,a,b,node){
+    if(a.t==="iter"||b.t==="iter"){
+      if(op==="-"&&a.t==="iter"&&b.t==="iter"){if(a.v.arr!==b.v.arr)throw rterr(node,"只有同一個 vector 的兩個位置可以相減");return{t:"int",v:a.v.i-b.v.i}}
+      const I=a.t==="iter"?a:b,k=a.t==="iter"?b.v:a.v;
+      if((op!=="+"&&op!=="-")||(op==="-"&&b.t==="iter")||typeof k!=="number")throw rterr(node,"v.begin() 這種位置只能加減一個整數，或兩個位置相減");
+      return{t:"iter",v:{...I.v,i:I.v.i+(op==="+"?k:-k)}};
+    }
     if(a.t==="ptr"||b.t==="ptr"){
       if(op==="-"&&a.t==="ptr"&&b.t==="ptr"){if(!a.v||!b.v||a.v.id!==b.v.id)throw rterr(node,"只有指向同一個陣列的兩個指標可以相減");return{t:"int",v:a.v.i-b.v.i}}
       const P=a.t==="ptr"?a:b,k=a.t==="ptr"?b.v:a.v;
@@ -603,6 +613,50 @@ function run(prog,src,input){
       case"un":{const a=ev(n.x);if(a.t==="struct")throw rterr(n,"整個 struct 不能這樣算，請指定欄位");if(n.op==="!")return B(!truthy(a));const t=a.t==="double"?"double":a.t==="ll"?"ll":"int";return{t,v:n.op==="-"?-a.v:a.v}}
       case"cast":{const a=ev(n.x);return{t:n.type,v:conv(n.type,a)}}
       case"ucall":return callFn(n);
+      case"greater":throw rterr(n,"greater<int>() 要放在 sort 的第三個參數");
+      case"bsearch":{
+        if(n.args.length!==3)throw rterr(n,`${n.f} 的寫法是 ${n.f}(開頭, 結尾, 要找的值)`);
+        const A=n.args[0],Bn=n.args[1],x=ev(n.args[2]).v;
+        let arr,lo,hi,label,mk;
+        if(A.k==="method"&&A.name==="begin"&&Bn.k==="method"&&Bn.name==="end"){
+          if(txt(A.obj)!==txt(Bn.obj))throw rterr(n,"begin() 和 end() 要是同一個 vector");
+          const it=ev(A);arr=it.v.arr;lo=0;hi=arr.length;label=it.v.label;mk=k=>({t:"iter",v:{...it.v,i:k}});
+        }else{
+          const p=ev(A),q=ev(Bn);
+          if(p.t!=="ptr"||q.t!=="ptr"||!p.v||!q.v||p.v.id!==q.v.id)throw rterr(n,`${n.f}(a, a + n, x) 的兩個位置要在同一個陣列裡。vector 要寫 ${n.f}(v.begin(), v.end(), x)。`);
+          const v=S.vars.find(o=>o.id===p.v.id);lo=p.v.i;hi=q.v.i;arr=v.values;label=v.name;mk=k=>pval(v,k);
+        }
+        for(let k=lo+1;k<hi;k++)if(arr[k-1]>arr[k]){note(`⚠ ${esc(label)} 的這一段<b>沒有由小到大排好</b>！二分搜尋只能用在排好的資料上，結果不可靠。`);break}
+        let k=lo;
+        if(n.f==="upper_bound")while(k<hi&&arr[k]<=x)k++;else while(k<hi&&arr[k]<x)k++;
+        const at=k<hi?`${esc(label)}[${k}]（值是 ${arr[k]}）`:`結尾（全部都${n.f==="upper_bound"?"不大於":"比"} ${x}${n.f==="upper_bound"?"":" 小"}）`;
+        if(n.f==="binary_search"){const found=k<hi&&arr[k]===x;
+          note(`ℹ <code>${esc(txt(n))}</code>：在排好的 ${esc(label)} 裡用二分搜尋找 ${x}，${found?"<b>找到了</b>，回傳 true（印出來是 1）":"<b>沒找到</b>，回傳 false（印出來是 0）"}。`);return B(found)}
+        note(`ℹ <code>${esc(txt(n))}</code>：在排好的 ${esc(label)} 裡找第一個 <b>${n.f==="lower_bound"?"≥":"&gt;"} ${x}</b> 的位置，是 ${at}。`);
+        return mk(k);
+      }
+      case"sortcall":{
+        if(S.quiet)throw IMPURE;
+        if(n.args.length<2||n.args.length>3)throw rterr(n,"sort 的寫法是 sort(開頭, 結尾)，或 sort(開頭, 結尾, greater&lt;int&gt;()) 由大到小");
+        if(n.args[2]&&n.args[2].k!=="greater")throw rterr(n,"這個網頁的 sort 第三個參數目前只支援 greater&lt;int&gt;()（由大到小）");
+        const desc=!!n.args[2],A=n.args[0],Bn=n.args[1];
+        let arr,lo,hi,label,keyOf;
+        if(A.k==="method"&&A.name==="begin"&&Bn.k==="method"&&Bn.name==="end"){
+          if(txt(A.obj)!==txt(Bn.obj))throw rterr(n,"begin() 和 end() 要是同一個 vector");
+          const cb=contOf(A.obj);if(!cb||!["vector","deque"].includes(cb.type))throw rterr(n,"sort 只能排 vector、deque 或陣列");
+          arr=cb.arr;lo=0;hi=arr.length;label=cb.label;keyOf=k=>cb.key+k;
+        }else{
+          const x=ev(A),y=ev(Bn);
+          if(x.t!=="ptr"||y.t!=="ptr"||!x.v||!y.v||x.v.id!==y.v.id)throw rterr(n,"sort(a, a + n) 的兩個位置要在同一個陣列裡。vector 要寫 sort(v.begin(), v.end())。");
+          const v=S.vars.find(q=>q.id===x.v.id);lo=x.v.i;hi=y.v.i;
+          if(lo<0||hi>v.len||lo>hi)throw rterr(n,`排序的範圍超出 ${esc(v.name)} 了：${esc(v.name)} 只有 ${v.len} 格`);
+          arr=v.values;label=v.name;keyOf=k=>v.id+":"+k;
+        }
+        const part=arr.slice(lo,hi).sort((p,q)=>p<q?-1:p>q?1:0);if(desc)part.reverse();
+        for(let k=lo;k<hi;k++){arr[k]=part[k-lo];S.changed.add(keyOf(k))}
+        S.info={kind:"msg",text:`<code>${esc(txt(n))}</code>：把 ${esc(label)}[${lo}] ～ ${esc(label)}[${hi-1}] <b>${desc?"由大到小":"由小到大"}</b>排好。sort 是 C++ 內建的，這裡一步就做完，不展開它裡面的過程。`};
+        return{t:"void",v:0};
+      }
       case"vnew":{const k=n.args.length?Math.trunc(ev(n.args[0]).v):0,f=n.args[1]?conv(n.elem,ev(n.args[1])):n.elem==="string"?"":0;
         if(k<0||k>200)throw rterr(n,"vector 的大小要在 0 ～ 200 之間");return{t:"vector",v:Array(k).fill(f),elem:n.elem}}
       case"new":{
@@ -818,7 +872,7 @@ function run(prog,src,input){
     const nonEmpty=()=>{if(!a.length)throw rterr(n,`<b>${T} 是空的！</b><code>${N}</code> 裡面沒有東西，不能 ${n.name}()。<br>先用 <code>${N}.empty()</code> 或 <code>${N}.size()</code> 檢查。`)};
     const val=()=>{const x=ev(n.args[0]);if(E==="vector"&&!Array.isArray(x.v))throw rterr(n,`${N} 的每一個元素都是一個 vector，這裡要放 vector`);return conv(E,x)};
     const show=x=>Array.isArray(x)?fmtVal("vector",x):fmtVal(E,x);
-    const ok=new Set(T==="vector"?["push_back","pop_back","front","back","size","empty","clear"]:["push_back","push_front","pop_back","pop_front","front","back","size","empty","clear"]);
+    const ok=new Set(T==="vector"?["push_back","pop_back","front","back","size","empty","clear","begin","end"]:["push_back","push_front","pop_back","pop_front","front","back","size","empty","clear"].concat(T==="deque"?["begin","end"]:[]));
     if(!ok.has(n.name))throw rterr(n,`${T} 沒有 .${esc(n.name)}()。${T==="vector"&&/front/.test(n.name)?"vector 只能從後面加、從後面拿（push_back、pop_back）；兩頭都要進出請用 deque。":""}可以用：${[...ok].join("、")}`);
     const mut=()=>{if(S.quiet)throw IMPURE};
     switch(n.name){
@@ -835,6 +889,8 @@ function run(prog,src,input){
       case"back":{need(0);nonEmpty();if(!S.quiet)S.read.add(b.key+(a.length-1));return{t:E,v:a[a.length-1],elem:b.elem2}}
       case"empty":{need(0);if(!S.quiet)S.read.add(b.key);return B(!a.length)}
       case"size":{need(0);if(!S.quiet)S.read.add(b.key);return{t:"int",v:a.length}}
+      case"begin":need(0);return{t:"iter",v:{arr:a,i:0,key:b.key,label:b.label,owner:b.owner,elem:E}};
+      case"end":need(0);return{t:"iter",v:{arr:a,i:a.length,key:b.key,label:b.label,owner:b.owner,elem:E}};
     }
   }
   function queueMethod(o,n){
