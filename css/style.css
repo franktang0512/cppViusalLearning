@@ -359,3 +359,20 @@ svg.arrows circle,svg.arrows marker path{fill:var(--accent)}
 .flat .cell .cv{height:34px;font-size:.88rem;padding:0 2px}
 .flatcap{margin-left:0}
 .arr{position:relative}
+/* 直的 stack：最上面在上面 */
+.vstack{display:inline-flex;flex-direction:column;align-items:stretch;margin:4px 0 0 4.2em;padding:0 0 0 0}
+.vstack .srow{display:grid;grid-template-columns:3.6em 5.6em 3em;align-items:center}
+.vstack .cv{border:2px solid var(--ink);border-top:none;background:var(--box);text-align:center;font-family:var(--mono);font-weight:700;padding:4px 6px;min-height:2em}
+.vstack .srow:first-child .cv{border-top:2px solid var(--ink)}
+.vstack .cv.empty{color:var(--muted);font-weight:500;border:2px dashed var(--line)}
+.vstack .stag{font-size:.78rem;color:var(--accent);font-family:var(--mono);text-align:right;padding-right:6px}
+.vstack .stag:last-child{text-align:left;padding-left:6px;color:var(--muted)}
+.vstack .sbase{height:4px;background:var(--ink);margin-left:3.6em;width:5.6em;border-radius:2px}
+/* vector / deque / list */
+.vrow{display:flex;align-items:flex-start;gap:6px;margin:2px 0}
+.vrow .vrl{font-family:var(--mono);font-size:.8rem;color:var(--muted);width:3.4em;padding-top:10px;flex:none}
+.vrow .vrn{font-size:.75rem;color:var(--muted);padding-top:12px;flex:none}
+.vrow .arr{flex:none}
+.arr.list .lnk{align-self:flex-start;padding:10px 4px 0;color:var(--accent);font-weight:700}
+.arr.list .cell .cv{border-radius:8px}
+.vrow .arr{margin:0}

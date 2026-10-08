@@ -51,5 +51,15 @@ CHAPTERS.push({part:"進階程式設計",id:7,title:"二維陣列",lessons:[
   goal:"上一課知道了：二維陣列在記憶體裡其實是一長條。所以我們也可以自己用「一維陣列」來存表格，只要自己算格子的位置：\n1. 第 i 列第 j 行 → 第 i × 4 + j 格（4 是每一列的格數）。\n2. 反過來，第 k 格 → 第 k / 4 列、第 k % 4 行（整數除法和取餘數）。\n這裡 b[k] 放的是 i × 10 + j，所以十位數就是列、個位數就是行，一看就知道每一格原本在表格的哪裡。",
   code:M("int b[12];  // 用一維陣列存 3 列 4 行的表格，共 12 格","int i, j;   // i：第幾列；j：第幾行","int k;      // 攤平以後的第幾格","","for (i = 0; i < 3; i++) {","    for (j = 0; j < 4; j++) {","        k = i * 4 + j;      // 第 i 列第 j 行 → 攤平以後的第 k 格","        b[k] = i * 10 + j;  // 也就是 b[i * 4 + j] = i * 10 + j;","    }","}","k = 6;","cout << \"第 \" << k << \" 格是第 \" << k / 4 << \" 列、第 \" << k % 4 << \" 行：\" << b[k] << endl;"),input:null,markers:{"b":["k"]},
   predict:"b[7] 會放進多少？它原本是第幾列第幾行？",
-  ask:"如果表格改成 3 列 5 行，程式裡哪些 4 要改成 5？b 要開幾格？"}
+  ask:"如果表格改成 3 列 5 行，程式裡哪些 4 要改成 5？b 要開幾格？"},
+ {id:"7-10",title:"二維 vector",isNew:"vector<vector<int>> a(3, vector<int>(4, 0))：3 列，每列 4 個 0",uses:"vector（第 5-7 課）、巢狀 for",
+  goal:"二維 vector 就是「每一個元素都是一個 vector」。vector<vector<int>> a(3, vector<int>(4, 0)); 的意思是：a 有 3 個元素（3 列），每一列都是 vector<int>(4, 0)，也就是 4 個 0。\na.size() 是有幾列，a[i].size() 是第 i 列有幾個，a[i][j] 一樣是第 i 列第 j 個。",
+  code:M("vector<vector<int>> a(3, vector<int>(4, 0));  // 3 列，每列 4 個 0","int i, j;  // i：第幾列；j：第幾行","","for (i = 0; i < a.size(); i++) {","    for (j = 0; j < a[i].size(); j++) {","        a[i][j] = i * 10 + j;","    }","}","cout << a.size() << \" 列，每列 \" << a[0].size() << \" 個，a[2][3] = \" << a[2][3] << endl;").replace("#include <iostream>","#include <iostream>\n#include <vector>"),input:null,
+  predict:"a.size() 和 a[0].size() 分別是多少？",
+  ask:"跟 7-1 的 int a[3][4] 比較：兩種寫法的 a[i][j] 用起來一樣嗎？哪裡不一樣？"},
+ {id:"7-11",title:"每一列可以不一樣長",isNew:"二維 vector 的每一列都是自己的 vector，可以各自 push_back",
+  goal:"二維陣列每一列一定一樣長；二維 vector 的每一列都是獨立的 vector，可以各自 push_back，所以長度可以不一樣。\n這個程式做出一個三角形：第 0 列 1 個、第 1 列 2 個、第 2 列 3 個。所以走訪時，內層迴圈要用 a[i].size()，不能寫死。",
+  code:M("vector<vector<int>> a(3);  // 3 列，每一列一開始都是空的","int i, j;  // i：第幾列；j：要放幾個","","for (i = 0; i < a.size(); i++) {","    for (j = 0; j <= i; j++) {","        a[i].push_back(j + 1);","    }","}","cout << a[0].size() << \" \" << a[1].size() << \" \" << a[2].size() << endl;").replace("#include <iostream>","#include <iostream>\n#include <vector>"),input:null,
+  predict:"三列的長度分別是多少？右邊記憶體區會長什麼樣子？",
+  ask:"把內層迴圈改成 j < 4，會變成什麼形狀？"}
 ]});

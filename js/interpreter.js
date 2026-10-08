@@ -1,10 +1,11 @@
 /* ================= 迷你 C++ 直譯器：把程式執行過程錄成一格一格的快照 ================= */
-const SIZE={int:4,ll:8,double:8,char:1,bool:1,string:32,stack:48,ptr:8};
-const TNAME={int:"int",ll:"long long",double:"double",char:"char",bool:"bool",string:"string",stack:"stack",ptr:"指標",struct:"struct"};
+const SIZE={int:4,ll:8,double:8,char:1,bool:1,string:32,stack:48,queue:48,deque:48,vector:24,list:24,ptr:8};
+const TNAME={int:"int",ll:"long long",double:"double",char:"char",bool:"bool",string:"string",stack:"stack",queue:"queue",deque:"deque",vector:"vector",list:"list",ptr:"指標",struct:"struct"};
 const GARB={int:[32764,4199,-1294,21845,7,-86,1,6422,-17,327],ll:[140737488355,4198400],double:[6.95e-310],char:[-52,113,-91,64,7],bool:[0]};
 const LIMIT=3000;
 const BRK={brk:1},CNT={cnt:1},RET={ret:1},LIM={lim:1};
-const KW=new Set(["int","long","double","float","char","bool","string","stack","void","if","else","while","for","break","continue","return","true","false","const","using","namespace","unsigned","struct","new","delete"]);
+const KW=new Set(["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","void","if","else","while","for","break","continue","return","true","false","const","using","namespace","unsigned","struct","new","delete"]);
+const CONTS=["stack","queue","deque","vector","list"];
 const MATH={abs:1,max:2,min:2,round:1,floor:1,ceil:1,sqrt:1,pow:2,strlen:1};
 
 function esc(t){return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
@@ -15,7 +16,7 @@ function fmtVal(t,v){
   if(t==="char")return charLit(v);
   if(t==="bool")return v?"true":"false";
   if(t==="string")return`"${v}"`;
-  if(t==="stack")return`[${v.join(", ")}]`;
+  if(CONTS.includes(t))return`[${v.map(x=>Array.isArray(x)?`[${x.join(", ")}]`:x).join(", ")}]`;
   if(t==="ptr")return v===null?"nullptr":"0x"+v.addr.toString(16);
   if(t==="struct")return`{${v.vals.map((x,i)=>fmtVal(v.sdef.fields[i].type,x)).join(", ")}}`;
   if(t==="double"){if(!isFinite(v))return String(v);if(Number.isInteger(v)&&Math.abs(v)<1e15)return v.toFixed(1);if(v!==0&&Math.abs(v)<1e-4)return v.toExponential(2);return String(+v.toPrecision(10))}
@@ -73,7 +74,7 @@ function parse(src){
   const peek=(k=0)=>T[Math.min(p+k,T.length-1)],next=()=>T[p++];
   const is=(v,k=0)=>{const t=peek(k);return(t.t==="op"||t.t==="kw")&&t.v===v};
   const expect=(v,hint)=>{if(!is(v)){const t=peek();const at=hint==="semi"?T[p-1].e:t.s;throw cerr(at,hint==="semi"?"這行結尾好像少了分號 ;":`這裡應該要有「${v}」`)}return next()};
-  const TYPES=["int","long","double","float","char","bool","string","stack","const","unsigned"];
+  const TYPES=["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","const","unsigned"];
   const structs={};let lastSdef=null;
   const isType=(k=0)=>{const t=peek(k);return t.t==="kw"&&(TYPES.includes(t.v)||t.v==="struct")||t.t==="id"&&!!structs[t.v]};
   function skipStd(){if(peek().t==="id"&&peek().v==="std"&&is("::",1))p+=2}
@@ -84,11 +85,16 @@ function parse(src){
     if(t.t==="id"&&structs[t.v]){lastSdef=structs[t.v];return"struct"}
     if(t.v==="long"){if(is("long"))next();if(is("int"))next();return"ll"}
     if(t.v==="float")return"double";
-    if(t.v==="stack"){expect("<");lastElem=parseType();if(lastElem==="stack")throw cerr(t.s,"這個網頁還不支援 stack 裡面再放 stack");expect(">");return"stack"}
+    if(CONTS.includes(t.v)){expect("<");const inner=parseType();let inner2=null;
+      if(CONTS.includes(inner)){if(t.v!=="vector"||inner!=="vector"||CONTS.includes(lastElem))throw cerr(t.s,`這個網頁只支援 vector<vector<型別>> 這一種兩層的寫法`);inner2=lastElem}
+      if(inner==="struct")throw cerr(t.s,`這個網頁還不支援 ${t.v} 裡面放 struct`);
+      lastElem=inner;lastElem2=inner2;closeAngle();return t.v}
     if(!["int","double","char","bool","string"].includes(t.v))throw cerr(t.s,"這裡應該是型別，例如 int");
     return t.v;
   }
-  let lastElem=null;
+  let lastElem=null,lastElem2=null;
+  // 收尾的 >：vector<vector<int>> 最後的 >> 要拆成兩個 >
+  const closeAngle=()=>{if(is(">>")){T[p]={...T[p],v:">",s:T[p].s+1};return}expect(">")};
   // struct 名稱 { 型別 欄位; ... };  → 算出每個欄位的位移（含對齊）
   function parseStructDef(){
     next();const nm=next();if(nm.t!=="id")throw cerr(nm.s,"struct 後面要接名稱，例如 struct Student");
@@ -99,7 +105,7 @@ function parse(src){
       if(peek().t==="eof")throw cerr(o.s,"這個 { 沒有對應的 }");
       if(!isType())throw cerr(peek().s,"struct 裡面要寫欄位，例如 int score;");
       const ft=peek(),type=parseType(),fsd=type==="struct"?lastSdef:null;
-      if(type==="stack")throw cerr(ft.s,"這個網頁還不支援在 struct 裡放 stack");
+      if(type==="stack"||type==="queue")throw cerr(ft.s,"這個網頁還不支援在 struct 裡放 stack");
       do{
         let ptr=false;if(is("*")){next();ptr=true;if(is("*"))throw cerr(peek().s,"這個網頁還不支援指標的指標（**）")}
         if(is("&"))throw cerr(peek().s,"這個網頁還不支援參考當 struct 的欄位");
@@ -127,12 +133,13 @@ function parse(src){
     const c=expect("}");return{k:"brace",items,s:o.s,e:c.e};
   }
   function parseDecl(){
-    const st=peek().s,type=parseType(),elem=type==="stack"?lastElem:null,sdef=type==="struct"?lastSdef:null,items=[];
+    const st=peek().s,type=parseType(),elem=CONTS.includes(type)?lastElem:null,elem2=CONTS.includes(type)?lastElem2:null,sdef=type==="struct"?lastSdef:null,items=[];
     do{
       let ref=false;if(is("&")){next();ref=true}
       let ptr=false;while(is("*")){next();if(ptr)throw cerr(peek().s,"這個網頁還不支援指標的指標（**）");ptr=true}
       const id=next();if(id.t!=="id")throw cerr(id.s,"型別後面要接變數名稱");
       const it={name:id.v,s:id.s,ptr,ref};
+      if(is("(")&&["vector","deque","list"].includes(type)){next();it.ctor=[];if(!is(")")){do{it.ctor.push(parseAssign())}while(is(",")&&next())}expect(")")}
       if(ref&&!is("="))throw cerr(id.s,`參考（別名）宣告時一定要綁定一個變數，例如 int &${id.v} = a;`);
       if(is("[")){next();if(is("]"))it.auto=true;else it.size=parseExpr();expect("]")}
       if(is("[")){next();if(is("]"))throw cerr(peek().s,"二維陣列的第二個 [ ] 一定要寫大小（每一列有幾格），例如 int a[3][4]");it.size2=parseExpr();expect("]");
@@ -143,8 +150,8 @@ function parse(src){
       }
       it.e=T[p-1].e;items.push(it);
     }while(is(",")&&next());
-    if(type==="stack"&&items.some(it=>it.size||it.auto||it.init||it.list))throw cerr(st,"stack 宣告時不用給大小或初始值，例如 stack<int> st;");
-    return{k:"decl",type,elem,sdef,items,s:st,e:T[p-1].e};
+    if((type==="stack"||type==="queue")&&items.some(it=>it.size||it.auto||it.init||it.list))throw cerr(st,"stack 宣告時不用給大小或初始值，例如 stack<int> st;");
+    return{k:"decl",type,elem,elem2,sdef,items,s:st,e:T[p-1].e};
   }
   function parseBlock(){
     const o=expect("{");const body=[];
@@ -157,6 +164,12 @@ function parse(src){
     if(is(";")){next();return{k:"empty",s:t.s,e:t.e}}
     if(is("if")){next();expect("(");const cond=parseExpr();expect(")");const then=parseStmt();let els=null;if(is("else")){next();els=parseStmt()}return{k:"if",cond,then,els,s:t.s,e:T[p-1].e}}
     if(is("while")){next();expect("(");const cond=parseExpr();expect(")");return{k:"while",cond,body:parseStmt(),s:t.s,e:t.e}}
+    if(is("for")&&isType(2)){
+      const save=p;next();expect("(");const ty=parseType(),el=lastElem;let rf=false;if(is("&")){next();rf=true}
+      if(peek().t==="id"&&is(":",1)){const nm=next();next();const x=parseExpr();const cp=expect(")");
+        return{k:"rfor",type:ty,elem:el,ref:rf,name:nm.v,x,body:parseStmt(),s:t.s,e:cp.e}}
+      p=save;
+    }
     if(is("for")){next();const op=expect("(");let init=null;
       if(!is(";")){if(isType())init=parseDecl();else{const x=parseExpr();init={k:"expr",x,s:x.s,e:x.e}}}
       expect(";","semi");const cond=is(";")?null:parseExpr();expect(";","semi");const upd=is(")")?null:parseExpr();const cp=expect(")");
@@ -230,7 +243,10 @@ function parse(src){
     return x;
   }
   function parsePrimary(){
-    skipStd();const t=next();
+    skipStd();
+    if(is("vector")&&is("<",1)){const st=peek().s;parseType();const el=lastElem;expect("(");const args=[];if(!is(")")){do{args.push(parseAssign())}while(is(",")&&next())}const c=expect(")");
+      if(CONTS.includes(el))throw cerr(st,"這個網頁還不支援這種寫法");return{k:"vnew",elem:el,args,s:st,e:c.e}}
+    const t=next();
     if(t.t==="num"){const raw=t.v.replace(/[lLuU]/g,"");const isD=/[.eE]/.test(raw);
       if(isD)return{k:"lit",val:{t:"double",v:parseFloat(raw)},s:t.s,e:t.e};
       const v=parseInt(raw,10);return{k:"lit",val:{t:(/[lL]/.test(t.v)||v>2147483647)?"ll":"int",v},s:t.s,e:t.e}}
@@ -259,7 +275,7 @@ function parse(src){
     do{
       const st=peek().s,base=parseType(),sdef=base==="struct"?lastSdef:null;let ref=false,arr=false,ptr=false;
       while(is("*")){next();ptr=true}
-      const type=ptr?"ptr":base,elem=ptr?base:null;
+      const type=ptr?"ptr":base,elem=ptr?base:CONTS.includes(base)?lastElem:null;
       if(is("&")){next();ref=true}
       const id=next();if(id.t!=="id")throw cerr(id.s,"參數的型別後面要接名稱，例如 int a");
       let arr2=null;
@@ -323,12 +339,13 @@ function run(prog,src,input){
     if(!force&&trace.length>=LIMIT)throw LIM;
     const warn=S.notes.length?`<div class="warn">${S.notes.join("<br>")}</div>`:"";
     trace.push({line:lineOf(node.s),span:[node.s,node.e],note:note+warn,
-      vars:S.vars.map(v=>({...v,values:v.values.map(x=>Array.isArray(x)?x.slice():x),init:v.init.slice()})),
+      vars:S.vars.map(v=>({...v,values:v.values.map(dcopy),init:v.init.slice()})),
       out:S.out,pos:S.pos,fail:S.fail,lastRead:S.lastRead,changed:[...S.changed],read:[...S.read],
       frames:S.frames.map(f=>({key:f.key,label:f.label})),refs:S.refs.map(({sc,...r})=>r),...extra});
     S.changed.clear();S.read.clear();S.notes=[];S.lastRead=null;
   }
   const rterr=(node,msg,extra={})=>({rt:true,node,msg,...extra});
+  const dcopy=x=>Array.isArray(x)?x.map(dcopy):x;
   const note=m=>{if(!S.quiet&&!S.notes.includes(m))S.notes.push(m)};
 
   function lookup(name,node){
@@ -336,7 +353,7 @@ function run(prog,src,input){
     if(name==="cin"||name==="cout")throw rterr(node,`${name} 必須寫在算式的最前面`);
     throw rterr(node,`變數 <code>${esc(name)}</code> 還沒有宣告就使用了（真正的 C++ 會出現編譯錯誤）。`);
   }
-  let declElem=null,declSdef=null;
+  let declElem=null,declSdef=null,declElem2=null;
   function fresh(ft,global){
     if(ft==="string")return["",true];
     if(ft==="ptr")return global?[null,true]:[{id:-1,i:0,addr:0x7ff3a8+(idc*16)%4096,sz:4},false];
@@ -347,7 +364,7 @@ function run(prog,src,input){
     const sc=S.scopes[S.scopes.length-1];
     if(sc.has(name))throw rterr(node,`<code>${esc(name)}</code> 在同一個區塊裡宣告了兩次（真正的 C++ 會編譯錯誤）。`);
     const n=len??1,sd=type==="struct"?declSdef:null,sz=sd?sd.size:SIZE[type];
-    const v={id:idc++,name,type,elem:declElem,isArr:len!=null,len:n,addr:global?S.gaddr:S.addr,values:[],init:[],scope:global?"global":S.frames[S.frames.length-1].key};
+    const v={id:idc++,name,type,elem:declElem,elem2:declElem2,isArr:len!=null,len:n,addr:global?S.gaddr:S.addr,values:[],init:[],scope:global?"global":S.frames[S.frames.length-1].key};
     if(sd)v.sdef=sd;
     if(global)S.gaddr+=sz*n;else S.addr+=sz*n;
     const g=GARB[type];
@@ -358,7 +375,7 @@ function run(prog,src,input){
     for(let i=0;i<n;i++){
       if(type==="string"){v.values.push("");v.init.push(true)}
       else if(type==="ptr"){if(global){v.values.push(null);v.init.push(true)}else{v.values.push({id:-1,i:0,addr:0x7ff3a8+(idc*16)%4096,sz:4});v.init.push(false)}}
-      else if(type==="stack"){v.values.push([]);v.init.push(true)}
+      else if(CONTS.includes(type)){v.values.push([]);v.init.push(true)}
       else if(global){v.values.push(0);v.init.push(true)}
       else{S.gi[type]=(S.gi[type]||0);v.values.push(g[S.gi[type]++%g.length]);v.init.push(false)}
     }
@@ -374,6 +391,7 @@ function run(prog,src,input){
   }
   function conv(type,val){
     let v=val.v;
+    if(CONTS.includes(type))return Array.isArray(v)?dcopy(v):[];
     if(type==="string")return val.t==="string"?v:val.t==="char"?String.fromCharCode(v<0?v+256:v):String(v);
     if(type==="ptr")return val.t==="ptr"?val.v:null;
     if(val.t==="string")return 0;
@@ -441,7 +459,20 @@ function run(prog,src,input){
     if(t==="int"){const w=op==="*"?Math.imul(x,y):(r|0);if(w!==r){note(`⚠ ${x} ${op} ${y} = ${r} 超出 int 的範圍，發生<b>溢位</b>，結果變成 ${w}。`);r=w}}
     return{t,v:r};
   }
+  function contOf(n){
+    if(n.k==="var"){let v=null;for(let i=S.scopes.length-1;i>=0&&!v;i--)v=S.scopes[i].get(n.name)||null;
+      return v&&CONTS.includes(v.type)&&!v.isArr?{arr:v.values[0],elem:v.elem,elem2:v.elem2,owner:v,type:v.type,label:v.name,key:v.id+":k"}:null}
+    if(n.k==="idx"){const b=contOf(n.a);if(b&&b.elem==="vector"){const i=contIdx(b,n);return{arr:b.arr[i],elem:b.elem2,elem2:null,owner:b.owner,type:"vector",label:`${b.label}[${i}]`,key:b.key+i+"_"}}}
+    return null;
+  }
+  function contIdx(b,n){
+    if(b.type!=="vector"&&b.type!=="deque")throw rterr(n,`${b.type} 不能用 [ ] 拿第幾個。${b.type==="list"?"list 要從頭一個一個走，例如 for (int x : "+esc(b.label)+")。":""}`);
+    const i=Math.trunc(ev(n.i).v),L=esc(b.label),len=b.arr.length;
+    if(i<0||i>=len)throw rterr(n,`<b>越界！</b><code>${L}</code> 現在只有 ${len} 個${len?`（${L}[0] ～ ${L}[${len-1}]）`:""}，程式卻存取了 ${L}[${i}]。<br>vector 不會自己變大：要多放東西，請用 push_back。`);
+    return i;
+  }
   function ref(n){
+    if(n.k==="idx"){const b=contOf(n.a);if(b){const i=contIdx(b,n);return{v:b.owner,i:0,cont:true,arr:b.arr,ci:i,et:b.elem,ft:b.elem,elem2:b.elem2,key:b.key+i,label:`${b.label}[${i}]`}}}
     if(n.k==="deref"){
       const pv=ev(n.x);if(pv.t!=="ptr")throw rterr(n,`* 只能用在指標上，<code>${esc(txt(n.x))}</code> 不是指標。`);
       const r=derefRef(pv.v,n,txt(n.x));
@@ -492,8 +523,9 @@ function run(prog,src,input){
     throw rterr(n,"這裡需要一個變數");
   }
   // 讀一個位置目前的值（不算「讀取」，畫面不會標藍框）
-  const peekv=r=>r.str?{t:"char",v:r.v.values[0].charCodeAt(r.si)||0}:r.whole?sval(r.v.sdef,wslots(r).map(k=>r.v.values[k]),wslots(r).map(k=>r.v.init[k])):{t:tyOf(r),v:r.v.values[r.i]};
+  const peekv=r=>r.cont?{t:r.et,v:r.arr[r.ci],elem:r.elem2}:r.str?{t:"char",v:r.v.values[0].charCodeAt(r.si)||0}:r.whole?sval(r.v.sdef,wslots(r).map(k=>r.v.values[k]),wslots(r).map(k=>r.v.init[k])):{t:tyOf(r),v:r.v.values[r.i]};
   function load(r){
+    if(r.cont){if(!S.quiet)S.read.add(r.key);return peekv(r)}
     if(r.str){
       if(!S.quiet){S.read.add(r.key);if(r.si===r.v.values[0].length)note(`ℹ <code>${esc(r.label)}</code> 剛好是字串的結尾，讀到的是 <b>'\\0'</b>（數值 0）。`)}
       return peekv(r);
@@ -508,6 +540,7 @@ function run(prog,src,input){
     return{t:tyOf(r),v:r.v.values[r.i]};
   }
   function store(r,val){
+    if(r.cont){r.arr[r.ci]=conv(r.et,val);S.changed.add(r.key);return}
     if(r.str){
       const str=r.v.values[0];
       if(r.si>=str.length)throw rterr(r.node,`<b>字串越界！</b>${esc(r.v.name)} 的長度是 ${str.length}，不能改 ${esc(r.label)}。要讓字串變長，請用 + 接上去。`);
@@ -548,7 +581,7 @@ function run(prog,src,input){
       }
       case"addr":{
         if(n.x.k==="var"){const v=lookup(n.x.name,n.x);if(v.isArr)return pval(v,0)}
-        const r=ref(n.x);if(r.str)throw rterr(n,"這個網頁還不支援取 string 裡某個字元的位址");
+        const r=ref(n.x);if(r.str)throw rterr(n,"這個網頁還不支援取 string 裡某個字元的位址");if(r.cont)throw rterr(n,"這個網頁還不支援取 vector 元素的位址");
         if(r.whole){const sz=r.v.sdef.size;return{t:"ptr",v:{id:r.v.id,i:r.elem,addr:r.v.addr+r.elem*sz,sz},elem:"struct"}}
         if(r.v.sdef)throw rterr(n,"這個網頁還不支援取 struct 欄位的位址");
         return pval(r.v,r.i);
@@ -570,6 +603,8 @@ function run(prog,src,input){
       case"un":{const a=ev(n.x);if(a.t==="struct")throw rterr(n,"整個 struct 不能這樣算，請指定欄位");if(n.op==="!")return B(!truthy(a));const t=a.t==="double"?"double":a.t==="ll"?"ll":"int";return{t,v:n.op==="-"?-a.v:a.v}}
       case"cast":{const a=ev(n.x);return{t:n.type,v:conv(n.type,a)}}
       case"ucall":return callFn(n);
+      case"vnew":{const k=n.args.length?Math.trunc(ev(n.args[0]).v):0,f=n.args[1]?conv(n.elem,ev(n.args[1])):n.elem==="string"?"":0;
+        if(k<0||k>200)throw rterr(n,"vector 的大小要在 0 ～ 200 之間");return{t:"vector",v:Array(k).fill(f),elem:n.elem}}
       case"new":{
         if(S.quiet)throw IMPURE;
         const sd=n.sdef,sz=sd?sd.size:SIZE[n.type],TN=sd?sd.name:TNAME[n.type];
@@ -625,11 +660,14 @@ function run(prog,src,input){
           if(n.name!=="ignore")throw rterr(n,"這個網頁只支援 cin.ignore()");
           if(S.quiet)throw IMPURE;return evIgnore(n);
         }
+        const cb=contOf(n.obj);
+        if(cb&&["vector","deque","list"].includes(cb.type))return contMethod(cb,n);
         if(n.obj.k==="mem"||n.obj.k==="idx"){const r=ref(n.obj);
           if(r.ft==="string"&&(n.name==="length"||n.name==="size")){if(!S.quiet)S.read.add(r.key);return{t:"int",v:r.v.values[r.i].length}}
           throw rterr(n,`<code>${esc(txt(n.obj))}</code> 不能用 .${esc(n.name)}()`)}
         const o=n.obj.k==="var"?lookup(n.obj.name,n.obj):null;
         if(o&&o.type==="stack"&&!o.isArr)return stackMethod(o,n);
+        if(o&&o.type==="queue"&&!o.isArr)return queueMethod(o,n);
         if(!o||o.type!=="string"||o.isArr)throw rterr(n,`只有 string 變數可以用 .${esc(n.name)}()`);
         if(n.name==="length"||n.name==="size"){if(!S.quiet)S.read.add(o.id+":0");return{t:"int",v:o.values[0].length}}
         throw rterr(n,`這個網頁還不支援 .${esc(n.name)}()`);
@@ -775,6 +813,46 @@ function run(prog,src,input){
     snap(at,`${ret!==null?`<code>${esc(txt(at))}</code>`:`${esc(n.f)} 執行到最後`}：<b>${esc(n.f)}</b> 結束${back}。`+(freed.length?`<br>${esc(n.f)} 的 ${freed.map(v=>`<code>${esc(v.name)}</code>`).join("、")} 都被收回了。`:""));
     return out||{t:"void",v:0};
   }
+  function contMethod(b,n){
+    const a=b.arr,N=esc(b.label),T=b.type,E=b.elem,need=k=>{if(n.args.length!==k)throw rterr(n,`${N}.${n.name}() ${k?"裡面要放一個值":"的括號裡不用放東西"}`)};
+    const nonEmpty=()=>{if(!a.length)throw rterr(n,`<b>${T} 是空的！</b><code>${N}</code> 裡面沒有東西，不能 ${n.name}()。<br>先用 <code>${N}.empty()</code> 或 <code>${N}.size()</code> 檢查。`)};
+    const val=()=>{const x=ev(n.args[0]);if(E==="vector"&&!Array.isArray(x.v))throw rterr(n,`${N} 的每一個元素都是一個 vector，這裡要放 vector`);return conv(E,x)};
+    const show=x=>Array.isArray(x)?fmtVal("vector",x):fmtVal(E,x);
+    const ok=new Set(T==="vector"?["push_back","pop_back","front","back","size","empty","clear"]:["push_back","push_front","pop_back","pop_front","front","back","size","empty","clear"]);
+    if(!ok.has(n.name))throw rterr(n,`${T} 沒有 .${esc(n.name)}()。${T==="vector"&&/front/.test(n.name)?"vector 只能從後面加、從後面拿（push_back、pop_back）；兩頭都要進出請用 deque。":""}可以用：${[...ok].join("、")}`);
+    const mut=()=>{if(S.quiet)throw IMPURE};
+    switch(n.name){
+      case"push_back":{need(1);mut();const v=val();a.push(v);S.changed.add(b.key+(a.length-1));
+        S.info={kind:"msg",text:`<code>${esc(txt(n))}</code>：在 ${N} 的<b>最後面</b>加上 ${show(v)}，現在有 ${a.length} 個。`};return B(1)}
+      case"push_front":{need(1);mut();const v=val();a.unshift(v);S.changed.add(b.key+"0");
+        S.info={kind:"msg",text:`<code>${esc(txt(n))}</code>：在 ${N} 的<b>最前面</b>加上 ${show(v)}，現在有 ${a.length} 個。`};return B(1)}
+      case"pop_back":{need(0);mut();nonEmpty();const v=a.pop();S.changed.add(b.key);
+        S.info={kind:"msg",text:`<code>${esc(txt(n))}</code>：把<b>最後面</b>的 ${show(v)} 拿掉，剩下 ${a.length} 個。`};return B(1)}
+      case"pop_front":{need(0);mut();nonEmpty();const v=a.shift();S.changed.add(b.key);
+        S.info={kind:"msg",text:`<code>${esc(txt(n))}</code>：把<b>最前面</b>的 ${show(v)} 拿掉，剩下 ${a.length} 個。`};return B(1)}
+      case"clear":{need(0);mut();a.length=0;S.changed.add(b.key);S.info={kind:"msg",text:`<code>${esc(txt(n))}</code>：把 ${N} 清空，現在 0 個。`};return B(1)}
+      case"front":{need(0);nonEmpty();if(!S.quiet)S.read.add(b.key+"0");return{t:E,v:a[0],elem:b.elem2}}
+      case"back":{need(0);nonEmpty();if(!S.quiet)S.read.add(b.key+(a.length-1));return{t:E,v:a[a.length-1],elem:b.elem2}}
+      case"empty":{need(0);if(!S.quiet)S.read.add(b.key);return B(!a.length)}
+      case"size":{need(0);if(!S.quiet)S.read.add(b.key);return{t:"int",v:a.length}}
+    }
+  }
+  function queueMethod(o,n){
+    const a=o.values[0],N=esc(o.name),need=k=>{if(n.args.length!==k)throw rterr(n,`${N}.${n.name}() ${k?"裡面要放一個值":"的括號裡不用放東西"}`)};
+    const nonEmpty=()=>{if(!a.length)throw rterr(n,`<b>queue 是空的！</b><code>${N}</code> 裡面沒有東西，不能 ${n.name}()。<br>先用 <code>${N}.empty()</code> 檢查，不是空的才能拿。`)};
+    switch(n.name){
+      case"push":{need(1);if(S.quiet)throw IMPURE;const x=ev(n.args[0]),v=conv(o.elem,x);a.push(v);S.changed.add(o.id+":k"+(a.length-1));
+        S.info={kind:"msg",text:`<code>${N}.push(${esc(txt(n.args[0]))})</code>：把 ${fmtVal(o.elem,v)} 排到 ${N} 的<b>最後面</b>，現在有 ${a.length} 個。`};return B(1)}
+      case"pop":{need(0);if(S.quiet)throw IMPURE;nonEmpty();const v=a.shift();S.changed.add(o.id+":0");
+        S.info={kind:"msg",text:`<code>${N}.pop()</code>：把<b>最前面</b>的 ${fmtVal(o.elem,v)} 拿走，剩下 ${a.length} 個。`+(a.length?`現在最前面是 ${fmtVal(o.elem,a[0])}。`:"現在是空的。")};return B(1)}
+      case"front":{need(0);nonEmpty();if(!S.quiet)S.read.add(o.id+":k0");return{t:o.elem,v:a[0]}}
+      case"back":{need(0);nonEmpty();if(!S.quiet)S.read.add(o.id+":k"+(a.length-1));return{t:o.elem,v:a[a.length-1]}}
+      case"empty":{need(0);if(!S.quiet)S.read.add(o.id+":0");return B(!a.length)}
+      case"size":{need(0);if(!S.quiet)S.read.add(o.id+":0");return{t:"int",v:a.length}}
+      case"top":throw rterr(n,`queue 沒有 top()。queue 是排隊：看最前面用 <code>${N}.front()</code>，看最後面用 <code>${N}.back()</code>。`);
+    }
+    throw rterr(n,`queue 沒有 .${esc(n.name)}()，可以用 push、pop、front、back、empty、size`);
+  }
   function stackMethod(o,n){
     const a=o.values[0],N=esc(o.name),need=k=>{if(n.args.length!==k)throw rterr(n,`${N}.${n.name}() ${k?"裡面要放一個值":"的括號裡不用放東西"}`)};
     const top=()=>{if(!a.length)throw rterr(n,`<b>stack 是空的！</b><code>${N}</code> 裡面沒有東西，不能 ${n.name}()。<br>先用 <code>${N}.empty()</code> 檢查，不是空的才能拿。`)};
@@ -852,6 +930,27 @@ function run(prog,src,input){
     S.refs.push({frame:fk,name:it.name,target:v.name,tid:v.id,targetFrame:frameName(v),alias:true,sc});
     return `宣告參考 <b>${esc(it.name)}</b>：${esc(it.name)} 是 <b>${esc(v.name)}</b> 的<b>別名</b>，兩個名字指的是同一個格子，<b>沒有</b>開新的記憶體。`;
   }
+  function declCont(it,d,global){
+    if(it.size||it.auto)throw rterr(it,`${d.type} 不用寫 [ ]，大小可以寫在小括號裡，例如 ${d.type}<int> ${esc(it.name)}(5);`);
+    const E=d.elem,T=`${d.type}&lt;${d.elem==="vector"?`vector&lt;${TNAME[d.elem2]}&gt;`:TNAME[E]}&gt;`;
+    let arr=[],how;
+    if(it.ctor){
+      const k=it.ctor.length?Math.trunc(ev(it.ctor[0]).v):0;if(k<0||k>200)throw rterr(it,"大小要在 0 ～ 200 之間");
+      let f=E==="vector"?[]:E==="string"?"":0,fv=null;
+      if(it.ctor[1]){fv=ev(it.ctor[1]);if(E==="vector"&&!Array.isArray(fv.v))throw rterr(it,"每一個元素都是 vector，第二個值要放 vector，例如 vector<int>(4, 0)");f=conv(E,fv)}
+      arr=Array.from({length:k},()=>dcopy(f));
+      how=k?`一開始就有 <b>${k}</b> 個，每一個都是 ${Array.isArray(f)?fmtVal("vector",f):fmtVal(E,f)}${it.ctor[1]?"":"（沒給值就是 0）"}。`:"一開始是空的。";
+    }else if(it.list){
+      if(E==="vector")throw rterr(it,"這個網頁還不支援二維 vector 用 { } 給初始值，請用 vector<vector<int>> a(3, vector<int>(4, 0));");
+      arr=it.list.map(x=>conv(E,ev(x)));how=`一開始放進 ${arr.length} 個：${fmtVal("vector",arr)}。`;
+    }else if(it.init){
+      const x=ev(it.init);if(!Array.isArray(x.v))throw rterr(it,`${d.type} 要用另一個 ${d.type} 或 { } 給初始值`);arr=dcopy(x.v);how=`複製 <code>${esc(txt(it.init))}</code> 的內容，共 ${arr.length} 個（是另外一份，不是同一個）。`;
+    }else how="一開始是<b>空的</b>，裡面還沒有東西。";
+    declElem=E;declElem2=d.elem2;const v=declare(d.type,it.name,null,it,global);declElem=null;declElem2=null;
+    v.values[0]=arr;S.changed.add(v.id+":k");
+    const tip={vector:"之後可以用 push_back 在後面加，用 [ ] 拿第幾個。",deque:"兩頭都可以加、都可以拿：push_front、push_back、pop_front、pop_back。",list:"像鏈結串列一樣一個接一個，兩頭都可以加、都可以拿，但不能用 [ ] 直接跳到第幾個。"}[d.type];
+    return `宣告 <code>${T}</code> <b>${esc(it.name)}</b>：${how}${tip}`;
+  }
   function declPtr(it,elem,global,sd){
     if(it.size||it.auto||it.list)throw rterr(it,"這個網頁還不支援指標陣列");
     const val=it.init?ev(it.init):null;
@@ -911,7 +1010,7 @@ function run(prog,src,input){
     return `宣告 ${T} ${N}：一個變數裡面<b>綁了 ${F} 個欄位</b>：${fieldList(sd)}，${sizeNote}。`+(global?"全域的會<b>自動設成 0</b>。":sd.fields.some(f=>f.type!=="string")?"沒有給初始值 → string 欄位是空字串，其他欄位是<b>垃圾值</b>。":"");
   }
   function decl2D(it,d,global){
-    if(d.type==="stack")throw rterr(it,"這個網頁還不支援 stack 陣列");
+    if(d.type==="stack"||d.type==="queue")throw rterr(it,"這個網頁還不支援 stack 陣列");
     const C=Math.trunc(ev(it.size2).v);if(C<=0)throw rterr(it,"陣列大小必須大於 0");
     let R;if(it.auto){if(!it.list)throw rterr(it,"[ ] 裡沒寫大小時，一定要給初始值");R=it.list.length}else R=Math.trunc(ev(it.size).v);
     if(R<=0)throw rterr(it,"陣列大小必須大於 0");
@@ -939,6 +1038,7 @@ function run(prog,src,input){
   function execDecl(d,global){
     const parts=[];const T=TNAME[d.type],sz=SIZE[d.type];const B_=n=>`${n} byte${n>1?"s":""}`;
     for(const it of d.items){
+      if(["vector","deque","list"].includes(d.type)&&!it.ref&&!it.ptr){parts.push(declCont(it,d,global));continue}
       if(it.ref){parts.push(declAlias(it,d.type,d.sdef));continue}
       if(d.sdef&&!it.ptr){parts.push(declStruct(it,d.sdef,global));continue}
       if(it.ptr){parts.push(declPtr(it,d.type,global,d.sdef));continue}
@@ -968,6 +1068,9 @@ function run(prog,src,input){
         if(it.init.k==="lit")parts.push(`宣告 ${T} ${N}（${B_(sz)}），放進 ${shown}。`);
         else{const raw=fmtVal(val.t,val.v);const t=txt(it.init);
           parts.push(`宣告 ${T} ${N}：先算 <code>${esc(t)}</code> → ${pre&&pre!==t?esc(pre)+" = ":""}${raw}${raw!==shown?`，存成 ${T} 變成 ${shown}`:""}，放進 ${esc(it.name)}。`)}
+      }else if(d.type==="queue"){
+        S.changed.add(v.id+":0");
+        parts.push(`宣告 <code>queue&lt;${TNAME[d.elem]}&gt;</code> ${N}：一個空的 queue，裡面還沒有東西。之後用 push 從<b>後面</b>放進去、pop 從<b>前面</b>拿出來，像排隊一樣。`);
       }else if(d.type==="stack"){
         S.changed.add(v.id+":0");
         parts.push(`宣告 <code>stack&lt;${TNAME[d.elem]}&gt;</code> ${N}：一個空的 stack，裡面還沒有東西。之後用 push 放進去、pop 拿出來，<b>只能動最上面那一個</b>。`);
@@ -1026,6 +1129,30 @@ function run(prog,src,input){
         S.vars=S.vars.filter(x=>x!==v);
         snap(st,`<code>delete ${esc(txt(st.x))}</code>：把 ${T} 指的 <b>${esc(v.name)}</b> 還給系統。<br>${T} 自己沒有變，還存著舊的位址 → 現在是<b>懸空指標</b>，不能再用 *${esc(txt(st.x))} 或 ${esc(txt(st.x))}-&gt;...（常常接著寫 ${esc(txt(st.x))} = nullptr;）。`);
         return;
+      }
+      case"rfor":{
+        if(st.ref)throw rterr(st,`這個網頁還不支援 for (${esc(TNAME[st.type]||st.type)} &amp;${esc(st.name)} : …)，請先寫 for (${esc(TNAME[st.type]||st.type)} ${esc(st.name)} : …)。`);
+        let get,len,label=esc(txt(st.x)),et,kOf;
+        const cb=contOf(st.x);
+        if(cb){if(cb.type==="stack"||cb.type==="queue")throw rterr(st,`${cb.type} 不能用 for ( : ) 走訪，只能看最${cb.type==="stack"?"上面":"前面"}那一個。`);
+          get=k=>cb.arr[k];len=()=>cb.arr.length;et=cb.elem;kOf=k=>cb.key+k}
+        else if(st.x.k==="var"){const v=lookup(st.x.name,st.x);
+          if(v.isArr&&!v.dims&&!v.sdef){get=k=>v.values[k];len=()=>v.len;et=v.type;kOf=k=>v.id+":"+k}
+          else if(v.type==="string"&&!v.isArr){get=k=>v.values[0].charCodeAt(k);len=()=>v.values[0].length;et="char";kOf=k=>v.id+":c"+k}
+          else throw rterr(st,`<code>${label}</code> 不能用 for ( : ) 走訪`)}
+        else throw rterr(st,"for ( : ) 的冒號後面要放一個 vector、陣列或字串");
+        const n0=len();
+        snap(st,`<code>for (${esc(TNAME[st.type]||st.type)} ${esc(st.name)} : ${label})</code>：從 ${label} 的第一個開始，<b>依序拿出每一個</b>，一共 ${n0} 個。`);
+        for(let k=0;k<len();k++){
+          S.scopes.push(new Map());
+          declElem=st.elem;const v=declare(st.type,st.name,null,st,false);declElem=null;
+          store({v,i:0,key:v.id+":0"},{t:et,v:dcopy(get(k))});S.read.add(kOf(k));
+          snap(st,`第 ${k+1} 輪：把 ${label} 的第 ${k} 個（${esc(fmtVal(et==="vector"?"vector":et,get(k)))}）複製一份放進 <b>${esc(st.name)}</b>。`);
+          const r=loopBody(st.body);
+          popScope(null);
+          if(r==="brk")break;
+        }
+        snap(st,`${label} 的每一個都拿過了，<b>離開迴圈</b>。`);return;
       }
       case"break":snap(st,"<code>break</code>：立刻跳出最近的那一層迴圈。");throw BRK;
       case"continue":snap(st,"<code>continue</code>：這一輪剩下的不做了，直接進入下一輪（for 迴圈會先做「更新」）。");throw CNT;

@@ -33,7 +33,7 @@ function renderNav(){
 /* ---------- 語法上色 ---------- */
 function hl(s){
   if(/^\s*#/.test(s))return`<span class="pp">${esc(s)}</span>`;
-  const re=/(\/\/.*$)|("(?:[^"\\]|\\.)*"?)|('(?:[^'\\]|\\.)*'?)|\b(int|long|double|float|char|bool|string|stack|struct|new|delete|void|nullptr|if|else|while|for|break|continue|return|true|false|const|using|namespace)\b|\b(cin|cout|endl|getline|strlen)\b|\b(\d+(?:\.\d+)?)\b/g;
+  const re=/(\/\/.*$)|("(?:[^"\\]|\\.)*"?)|('(?:[^'\\]|\\.)*'?)|\b(int|long|double|float|char|bool|string|stack|queue|deque|vector|list|struct|new|delete|void|nullptr|if|else|while|for|break|continue|return|true|false|const|using|namespace)\b|\b(cin|cout|endl|getline|strlen)\b|\b(\d+(?:\.\d+)?)\b/g;
   let o="",last=0,m;
   while((m=re.exec(s))){
     o+=esc(s.slice(last,m.index));
@@ -285,12 +285,44 @@ function renderMem(s,flash){
     for(const v of vs){
       if(v.sdef){h+=structHTML(v);continue}
       if(v.dims){h+=gridHTML(v);continue}
-      if(v.type==="stack"&&!v.isArr){
+      if(["vector","deque","list"].includes(v.type)&&!v.isArr){
+        const a=v.values[0],base=v.id+":k",all0=ch.has(base),rd0=rd.has(base),mk=(ST.L.markers||{})[v.name]||[];
+        const markAt=i=>mk.filter(n=>byName[n]&&byName[n].values[0]===i).join(",");
+        const cellHtml=(x,key,i,last,lab)=>{const fl=flash&&(all0||ch.has(key))?" flash":"",r=rd0||rd.has(key)?" rd":"";
+          return`<div class="cell${last?" last":""}"><div class="cv${fl}${r}">${esc(fmtVal(v.elem==="vector"?v.elem2:v.elem,x))}</div><div class="ci">${lab}</div><div class="mk">${i===null?"":markAt(i)}</div></div>`};
+        const tn=v.elem==="vector"?`vector&lt;${TNAME[v.elem2]}&gt;`:TNAME[v.elem];
+        let body;
+        if(v.elem==="vector"){
+          // 二維 vector：一列畫一行，每一列可以不一樣長
+          body=a.length?a.map((row,r)=>{const rk=base+r,rf=flash&&(all0||ch.has(rk))?" flash":"";
+            const cells=row.length?row.map((x,c)=>cellHtml(x,rk+"_"+c,null,c===row.length-1,`[${c}]`)).join(""):`<div class="cell last"><div class="cv${rf}" style="min-width:4em">空的</div><div class="ci">&nbsp;</div></div>`;
+            return`<div class="vrow"><span class="vrl${rf}">${esc(v.name)}[${r}]</span><div class="arr">${cells}</div><span class="vrn">${row.length} 個</span></div>`}).join(""):`<div class="arr"><div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div></div>`;
+        }else{
+          const lab=i=>v.type==="vector"?`[${i}]`:v.type==="deque"?[i===0?"front":"",i===a.length-1?"back":""].filter(Boolean).join(" / ")||`[${i}]`:[i===0?"front":"",i===a.length-1?"back":""].filter(Boolean).join(" / ")||"&nbsp;";
+          const cells=a.map((x,i)=>cellHtml(x,base+i,i,i===a.length-1,lab(i))+(v.type==="list"&&i<a.length-1?`<div class="lnk">→</div>`:"")).join("");
+          body=`<div class="arr${v.type==="list"?" list":""}">${a.length?cells:`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`}</div>`;
+        }
+        const note=v.type==="vector"?(v.elem==="vector"?`${a.length} 列`:`size = ${a.length}`):v.type==="deque"?`${a.length} 個・兩頭都能進出`:`${a.length} 個・一個接一個`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${v.type}&lt;${tn}&gt;・${note}</span></div></div>${body}</div>`;
+        continue;
+      }
+      if(v.type==="queue"&&!v.isArr){
         const a=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0");
         let cells=a.map((x,i)=>{const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
-          return`<div class="cell${i===a.length-1?" last":""}"><div class="cv${fl}${r}">${esc(fmtVal(v.elem,x))}</div><div class="ci">${i===0&&a.length>1?"底":"&nbsp;"}</div><div class="mk">${i===a.length-1?"top":""}</div></div>`}).join("");
+          const lb=[i===0?"front":"",i===a.length-1?"back":""].filter(Boolean).join(" / ");
+          return`<div class="cell${i===a.length-1?" last":""}"><div class="cv${fl}${r}">${esc(fmtVal(v.elem,x))}</div><div class="ci">&nbsp;</div><div class="mk">${lb}</div></div>`}).join("");
         if(!a.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${esc(v.name)}</span> <span class="ty">stack&lt;${TNAME[v.elem]}&gt;・${a.length} 個・右邊是最上面</span></div></div><div class="arr">${cells}</div></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">queue&lt;${TNAME[v.elem]}&gt;・${a.length} 個・← 從左邊出去，從右邊進來 ←</span></div></div><div class="arr">${cells}</div></div>`;
+        continue;
+      }
+      if(v.type==="stack"&&!v.isArr){
+        // 直的畫：最上面（top）在上面，最下面是底
+        const a=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0");
+        let cells="";
+        for(let i=a.length-1;i>=0;i--){const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
+          cells+=`<div class="srow"><span class="stag">${i===a.length-1?"top →":""}</span><div class="cv${fl}${r}">${esc(fmtVal(v.elem,a[i]))}</div><span class="stag">${i===0&&a.length>1?"← 底":""}</span></div>`}
+        if(!a.length)cells=`<div class="srow"><span class="stag"></span><div class="cv empty${flash&&all0?" flash":""}">空的</div><span class="stag"></span></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">stack&lt;${TNAME[v.elem]}&gt;・${a.length} 個</span></div></div><div class="vstack">${cells}<div class="sbase"></div></div></div>`;
         continue;
       }
       if(v.type==="string"&&!v.isArr){

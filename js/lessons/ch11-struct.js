@@ -53,5 +53,10 @@ CHAPTERS.push({part:"進階程式設計",id:11,title:"struct 與鏈結串列",le
   goal:"刪掉第一個節點：先用 old 記住它，head 往後移到下一個，最後 delete old 把空間還回去。\n如果直接 delete head，就再也拿不到 head->next 了。",
   code:FN(NODE,...THREE,"Node *old;  // 暫時記住要刪掉的節點","","old = head;","head = head->next;","delete old;","for (Node *p = head; p != nullptr; p = p->next) {","    cout << p->data << \" \";","}","cout << endl;"),input:null,
   predict:"delete old 之後，old 這個指標還存著什麼？還能用嗎？",
-  ask:"把三行改成 delete head; head = head->next; 會發生什麼事？"}
+  ask:"把三行改成 delete head; head = head->next; 會發生什麼事？"},
+ {id:"11-10",title:"C++ 內建的 list",isNew:"#include <list>：push_front、push_back、pop_front，不用自己改指標",uses:"鏈結串列（第 11-6 ～ 11-9 課）、for (int x : l)",
+  goal:"前面自己用 struct 和 new 做鏈結串列，插在最前面、刪掉第一個都要自己改指標。C++ 已經幫你做好了：#include <list> 之後用 list<int>，push_front 就是插在最前面、pop_front 就是刪掉第一個，指標的事它都幫你處理。\nlist 不能用 l[i] 直接跳到第幾個（因為要從頭一個一個走），要看全部就用 for (int x : l)。",
+  code:M("list<int> l;  // C++ 內建的鏈結串列","","l.push_back(2);   // 接在最後面","l.push_back(3);","l.push_front(1);  // 插在最前面（11-8 自己做過）","l.pop_front();    // 刪掉第一個（11-9 自己做過）","l.push_front(0);","for (int x : l) {","    cout << x << \" \";","}","cout << endl;").replace("#include <iostream>","#include <iostream>\n#include <list>"),input:null,
+  predict:"最後 l 裡面依序是哪些數字？",
+  ask:"把 for 迴圈改成 cout << l[1] << endl; 會怎樣？為什麼 list 不能這樣用？"}
 ]});
