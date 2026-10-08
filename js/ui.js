@@ -330,6 +330,12 @@ function renderMem(s,flash){
   // 攤平的長條太長時，捲到這一步有動到的那一格
   box.querySelectorAll(".arr.flat").forEach(st=>{const c=st.querySelector(".cv.oob,.cv.flash,.cv.rd")||[...st.querySelectorAll(".cv")].find(x=>box.querySelector(`[data-p="${x.dataset.k}"]`));if(c)st.scrollLeft=Math.max(0,c.parentElement.offsetLeft-st.offsetLeft-st.clientWidth/2)});
   drawArrows();
+  // 陣列太長的時候，橫向捲到有標記（例如 i、k）或剛被改的那一格
+  box.querySelectorAll(".arr").forEach(a=>{
+    if(a.scrollWidth<=a.clientWidth)return;
+    const c=[...a.querySelectorAll(".cell")].find(c=>c.querySelector(".cv.flash"))||[...a.querySelectorAll(".cell")].find(c=>(c.querySelector(".mk")||{}).textContent);
+    if(c&&(c.offsetLeft<a.scrollLeft||c.offsetLeft+c.offsetWidth>a.scrollLeft+a.clientWidth))a.scrollLeft=Math.max(0,c.offsetLeft-a.clientWidth/2);
+  });
   // 呼叫堆疊很深的時候，捲到正在執行的那一層
   const cur=[...box.querySelectorAll(".grp.fn")].pop();
   if(cur&&box.scrollHeight>box.clientHeight)box.scrollTop=Math.max(0,cur.offsetTop-box.offsetTop-6);

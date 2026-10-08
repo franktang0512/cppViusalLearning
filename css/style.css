@@ -358,3 +358,4 @@ svg.arrows circle,svg.arrows marker path{fill:var(--accent)}
 .flat .cell{min-width:34px}
 .flat .cell .cv{height:34px;font-size:.88rem;padding:0 2px}
 .flatcap{margin-left:0}
+.arr{position:relative}
