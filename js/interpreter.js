@@ -1,11 +1,11 @@
 /* ================= 迷你 C++ 直譯器：把程式執行過程錄成一格一格的快照 ================= */
-const SIZE={int:4,ll:8,double:8,char:1,bool:1,string:32,stack:48,queue:48,deque:48,vector:24,list:24,ptr:8};
-const TNAME={int:"int",ll:"long long",double:"double",char:"char",bool:"bool",string:"string",stack:"stack",queue:"queue",deque:"deque",vector:"vector",list:"list",ptr:"指標",struct:"struct"};
+const SIZE={int:4,ll:8,double:8,char:1,bool:1,string:32,stack:48,queue:48,deque:48,vector:24,list:24,priority_queue:24,ptr:8};
+const TNAME={int:"int",ll:"long long",double:"double",char:"char",bool:"bool",string:"string",stack:"stack",queue:"queue",deque:"deque",vector:"vector",list:"list",priority_queue:"priority_queue",ptr:"指標",struct:"struct"};
 const GARB={int:[32764,4199,-1294,21845,7,-86,1,6422,-17,327],ll:[140737488355,4198400],double:[6.95e-310],char:[-52,113,-91,64,7],bool:[0]};
 const LIMIT=3000;
 const BRK={brk:1},CNT={cnt:1},RET={ret:1},LIM={lim:1};
-const KW=new Set(["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","void","if","else","while","for","break","continue","return","true","false","const","using","namespace","unsigned","struct","new","delete"]);
-const CONTS=["stack","queue","deque","vector","list"];
+const KW=new Set(["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","priority_queue","void","if","else","while","for","break","continue","return","true","false","const","using","namespace","unsigned","struct","new","delete"]);
+const CONTS=["stack","queue","deque","vector","list","priority_queue"];
 const MATH={abs:1,max:2,min:2,round:1,floor:1,ceil:1,sqrt:1,pow:2,strlen:1};
 
 function esc(t){return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
@@ -75,7 +75,7 @@ function parse(src){
   const peek=(k=0)=>T[Math.min(p+k,T.length-1)],next=()=>T[p++];
   const is=(v,k=0)=>{const t=peek(k);return(t.t==="op"||t.t==="kw")&&t.v===v};
   const expect=(v,hint)=>{if(!is(v)){const t=peek();const at=hint==="semi"?T[p-1].e:t.s;throw cerr(at,hint==="semi"?"這行結尾好像少了分號 ;":`這裡應該要有「${v}」`)}return next()};
-  const TYPES=["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","const","unsigned"];
+  const TYPES=["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","priority_queue","const","unsigned"];
   const structs={};let lastSdef=null;
   const isType=(k=0)=>{const t=peek(k);return t.t==="kw"&&(TYPES.includes(t.v)||t.v==="struct")||t.t==="id"&&!!structs[t.v]};
   function skipStd(){if(peek().t==="id"&&peek().v==="std"&&is("::",1))p+=2}
@@ -88,8 +88,13 @@ function parse(src){
     if(t.v==="float")return"double";
     if(CONTS.includes(t.v)){expect("<");const inner=parseType();let inner2=null;
       if(CONTS.includes(inner)){if(t.v!=="vector"||inner!=="vector"||CONTS.includes(lastElem))throw cerr(t.s,`這個網頁只支援 vector<vector<型別>> 這一種兩層的寫法`);inner2=lastElem}
-      if(inner==="struct")throw cerr(t.s,`這個網頁還不支援 ${t.v} 裡面放 struct`);
-      lastElem=inner;lastElem2=inner2;closeAngle();return t.v}
+      let el=inner;
+      if(is("*")){next();el="ptr";inner2=null}
+      else if(inner==="struct")throw cerr(t.s,`這個網頁還不支援 ${t.v} 裡面直接放 struct，可以放指標，例如 ${t.v}<Node*>`);
+      if(t.v==="priority_queue"){inner2="max";
+        if(is(",")){next();parseType();expect(",");const g=next();if(g.v!=="greater"&&g.v!=="less")throw cerr(g.s,"第三個參數要寫 greater<型別> 或 less<型別>");
+          expect("<");parseType();closeAngle();inner2=g.v==="greater"?"min":"max"}}
+      lastElem=el;lastElem2=inner2;closeAngle();return t.v}
     if(!["int","double","char","bool","string"].includes(t.v))throw cerr(t.s,"這裡應該是型別，例如 int");
     return t.v;
   }
@@ -106,7 +111,7 @@ function parse(src){
       if(peek().t==="eof")throw cerr(o.s,"這個 { 沒有對應的 }");
       if(!isType())throw cerr(peek().s,"struct 裡面要寫欄位，例如 int score;");
       const ft=peek(),type=parseType(),fsd=type==="struct"?lastSdef:null;
-      if(type==="stack"||type==="queue")throw cerr(ft.s,"這個網頁還不支援在 struct 裡放 stack");
+      if(type==="stack"||type==="queue"||type==="priority_queue")throw cerr(ft.s,"這個網頁還不支援在 struct 裡放 stack");
       do{
         let ptr=false;if(is("*")){next();ptr=true;if(is("*"))throw cerr(peek().s,"這個網頁還不支援指標的指標（**）")}
         if(is("&"))throw cerr(peek().s,"這個網頁還不支援參考當 struct 的欄位");
@@ -151,7 +156,7 @@ function parse(src){
       }
       it.e=T[p-1].e;items.push(it);
     }while(is(",")&&next());
-    if((type==="stack"||type==="queue")&&items.some(it=>it.size||it.auto||it.init||it.list))throw cerr(st,"stack 宣告時不用給大小或初始值，例如 stack<int> st;");
+    if((type==="stack"||type==="queue"||type==="priority_queue")&&items.some(it=>it.size||it.auto||it.init||it.list))throw cerr(st,"stack 宣告時不用給大小或初始值，例如 stack<int> st;");
     return{k:"decl",type,elem,elem2,sdef,items,s:st,e:T[p-1].e};
   }
   function parseBlock(){
@@ -722,6 +727,7 @@ function run(prog,src,input){
         const o=n.obj.k==="var"?lookup(n.obj.name,n.obj):null;
         if(o&&o.type==="stack"&&!o.isArr)return stackMethod(o,n);
         if(o&&o.type==="queue"&&!o.isArr)return queueMethod(o,n);
+        if(o&&o.type==="priority_queue"&&!o.isArr)return pqMethod(o,n);
         if(!o||o.type!=="string"||o.isArr)throw rterr(n,`只有 string 變數可以用 .${esc(n.name)}()`);
         if(n.name==="length"||n.name==="size"){if(!S.quiet)S.read.add(o.id+":0");return{t:"int",v:o.values[0].length}}
         throw rterr(n,`這個網頁還不支援 .${esc(n.name)}()`);
@@ -893,14 +899,32 @@ function run(prog,src,input){
       case"end":need(0);return{t:"iter",v:{arr:a,i:a.length,key:b.key,label:b.label,owner:b.owner,elem:E}};
     }
   }
+  // priority_queue：裡面一直保持排好（最大的或最小的在最前面），top 就是第一個
+  function pqMethod(o,n){
+    const a=o.values[0],N=esc(o.name),mn=o.elem2==="min",need=k=>{if(n.args.length!==k)throw rterr(n,`${N}.${n.name}() ${k?"裡面要放一個值":"的括號裡不用放東西"}`)};
+    const nonEmpty=()=>{if(!a.length)throw rterr(n,`<b>priority_queue 是空的！</b><code>${N}</code> 裡面沒有東西，不能 ${n.name}()。先用 <code>${N}.empty()</code> 檢查。`)};
+    switch(n.name){
+      case"push":{need(1);if(S.quiet)throw IMPURE;const v=conv(o.elem,ev(n.args[0]));let k=0;while(k<a.length&&(mn?a[k]<=v:a[k]>=v))k++;a.splice(k,0,v);S.changed.add(o.id+":k"+k);
+        S.info={kind:"msg",text:`<code>${N}.push(${esc(txt(n.args[0]))})</code>：放進 ${fmtVal(o.elem,v)}，它自動排到第 ${k+1} 個。現在最${mn?"小":"大"}的（top）是 ${fmtVal(o.elem,a[0])}。`};return B(1)}
+      case"pop":{need(0);if(S.quiet)throw IMPURE;nonEmpty();const v=a.shift();S.changed.add(o.id+":0");
+        S.info={kind:"msg",text:`<code>${N}.pop()</code>：把最${mn?"小":"大"}的 ${fmtVal(o.elem,v)} 拿走，剩下 ${a.length} 個。`+(a.length?`現在的 top 是 ${fmtVal(o.elem,a[0])}。`:"現在是空的。")};return B(1)}
+      case"top":{need(0);nonEmpty();if(!S.quiet)S.read.add(o.id+":k0");return{t:o.elem,v:a[0]}}
+      case"empty":{need(0);if(!S.quiet)S.read.add(o.id+":0");return B(!a.length)}
+      case"size":{need(0);if(!S.quiet)S.read.add(o.id+":0");return{t:"int",v:a.length}}
+      case"front":throw rterr(n,`priority_queue 沒有 front()，看最${mn?"小":"大"}的要用 <code>${N}.top()</code>。`);
+    }
+    throw rterr(n,`priority_queue 沒有 .${esc(n.name)}()，可以用 push、pop、top、empty、size`);
+  }
+  // 容器裡的一個值怎麼寫在說明裡：指標就寫「指向哪個節點」
+  const showEl=(t,v)=>t==="ptr"?(v===null?"nullptr":`指向 ${esc(targetLabel(v))} 的指標`):fmtVal(t,v);
   function queueMethod(o,n){
     const a=o.values[0],N=esc(o.name),need=k=>{if(n.args.length!==k)throw rterr(n,`${N}.${n.name}() ${k?"裡面要放一個值":"的括號裡不用放東西"}`)};
     const nonEmpty=()=>{if(!a.length)throw rterr(n,`<b>queue 是空的！</b><code>${N}</code> 裡面沒有東西，不能 ${n.name}()。<br>先用 <code>${N}.empty()</code> 檢查，不是空的才能拿。`)};
     switch(n.name){
       case"push":{need(1);if(S.quiet)throw IMPURE;const x=ev(n.args[0]),v=conv(o.elem,x);a.push(v);S.changed.add(o.id+":k"+(a.length-1));
-        S.info={kind:"msg",text:`<code>${N}.push(${esc(txt(n.args[0]))})</code>：把 ${fmtVal(o.elem,v)} 排到 ${N} 的<b>最後面</b>，現在有 ${a.length} 個。`};return B(1)}
+        S.info={kind:"msg",text:`<code>${N}.push(${esc(txt(n.args[0]))})</code>：把 ${showEl(o.elem,v)} 排到 ${N} 的<b>最後面</b>，現在有 ${a.length} 個。`};return B(1)}
       case"pop":{need(0);if(S.quiet)throw IMPURE;nonEmpty();const v=a.shift();S.changed.add(o.id+":0");
-        S.info={kind:"msg",text:`<code>${N}.pop()</code>：把<b>最前面</b>的 ${fmtVal(o.elem,v)} 拿走，剩下 ${a.length} 個。`+(a.length?`現在最前面是 ${fmtVal(o.elem,a[0])}。`:"現在是空的。")};return B(1)}
+        S.info={kind:"msg",text:`<code>${N}.pop()</code>：把<b>最前面</b>的 ${showEl(o.elem,v)} 拿走，剩下 ${a.length} 個。`+(a.length?`現在最前面是 ${showEl(o.elem,a[0])}。`:"現在是空的。")};return B(1)}
       case"front":{need(0);nonEmpty();if(!S.quiet)S.read.add(o.id+":k0");return{t:o.elem,v:a[0]}}
       case"back":{need(0);nonEmpty();if(!S.quiet)S.read.add(o.id+":k"+(a.length-1));return{t:o.elem,v:a[a.length-1]}}
       case"empty":{need(0);if(!S.quiet)S.read.add(o.id+":0");return B(!a.length)}
@@ -914,9 +938,9 @@ function run(prog,src,input){
     const top=()=>{if(!a.length)throw rterr(n,`<b>stack 是空的！</b><code>${N}</code> 裡面沒有東西，不能 ${n.name}()。<br>先用 <code>${N}.empty()</code> 檢查，不是空的才能拿。`)};
     switch(n.name){
       case"push":{need(1);if(S.quiet)throw IMPURE;const x=ev(n.args[0]),v=conv(o.elem,x);a.push(v);S.changed.add(o.id+":k"+(a.length-1));
-        S.info={kind:"msg",text:`<code>${N}.push(${esc(txt(n.args[0]))})</code>：把 ${fmtVal(o.elem,v)} 放到 ${N} 的<b>最上面</b>，現在有 ${a.length} 個。`};return B(1)}
+        S.info={kind:"msg",text:`<code>${N}.push(${esc(txt(n.args[0]))})</code>：把 ${showEl(o.elem,v)} 放到 ${N} 的<b>最上面</b>，現在有 ${a.length} 個。`};return B(1)}
       case"pop":{need(0);if(S.quiet)throw IMPURE;top();const v=a.pop();
-        S.info={kind:"msg",text:`<code>${N}.pop()</code>：把最上面的 ${fmtVal(o.elem,v)} <b>拿掉</b>，剩下 ${a.length} 個。`+(a.length?`現在最上面是 ${fmtVal(o.elem,a[a.length-1])}。`:"現在是空的。")};return B(1)}
+        S.info={kind:"msg",text:`<code>${N}.pop()</code>：把最上面的 ${showEl(o.elem,v)} <b>拿掉</b>，剩下 ${a.length} 個。`+(a.length?`現在最上面是 ${showEl(o.elem,a[a.length-1])}。`:"現在是空的。")};return B(1)}
       case"top":{need(0);top();if(!S.quiet)S.read.add(o.id+":k"+(a.length-1));return{t:o.elem,v:a[a.length-1]}}
       case"empty":{need(0);if(!S.quiet)S.read.add(o.id+":0");return B(!a.length)}
       case"size":{need(0);if(!S.quiet)S.read.add(o.id+":0");return{t:"int",v:a.length}}
@@ -1066,7 +1090,7 @@ function run(prog,src,input){
     return `宣告 ${T} ${N}：一個變數裡面<b>綁了 ${F} 個欄位</b>：${fieldList(sd)}，${sizeNote}。`+(global?"全域的會<b>自動設成 0</b>。":sd.fields.some(f=>f.type!=="string")?"沒有給初始值 → string 欄位是空字串，其他欄位是<b>垃圾值</b>。":"");
   }
   function decl2D(it,d,global){
-    if(d.type==="stack"||d.type==="queue")throw rterr(it,"這個網頁還不支援 stack 陣列");
+    if(d.type==="stack"||d.type==="queue"||d.type==="priority_queue")throw rterr(it,"這個網頁還不支援 stack 陣列");
     const C=Math.trunc(ev(it.size2).v);if(C<=0)throw rterr(it,"陣列大小必須大於 0");
     let R;if(it.auto){if(!it.list)throw rterr(it,"[ ] 裡沒寫大小時，一定要給初始值");R=it.list.length}else R=Math.trunc(ev(it.size).v);
     if(R<=0)throw rterr(it,"陣列大小必須大於 0");
@@ -1103,7 +1127,7 @@ function run(prog,src,input){
       if(it.size){len=Math.trunc(ev(it.size).v);if(len<=0)throw rterr(it,"陣列大小必須大於 0");if(len>200)throw rterr(it,"這個網頁最多只能顯示 200 格的陣列，請開小一點。")}
       if(it.auto){if(it.list)len=it.list.length;else if(it.init&&it.init.k==="str"&&d.type==="char")len=it.init.v.length+1;else throw rterr(it,"[ ] 裡沒寫大小時，一定要給初始值");if(!len)throw rterr(it,"陣列大小必須大於 0")}
       const pre=it.init?subOf(it.init):null;const val=it.init?ev(it.init):null;
-      declElem=d.elem;const v=declare(d.type,it.name,len,it,global);declElem=null;const N=`<b>${esc(it.name)}</b>`;
+      declElem=d.elem;declElem2=d.elem2;const v=declare(d.type,it.name,len,it,global);declElem=null;declElem2=null;const N=`<b>${esc(it.name)}</b>`;
       if(len!=null){
         if(it.list){
           if(it.list.length>len)throw rterr(it,`大括號裡有 ${it.list.length} 個值，但陣列只有 ${len} 格。`);
@@ -1124,6 +1148,9 @@ function run(prog,src,input){
         if(it.init.k==="lit")parts.push(`宣告 ${T} ${N}（${B_(sz)}），放進 ${shown}。`);
         else{const raw=fmtVal(val.t,val.v);const t=txt(it.init);
           parts.push(`宣告 ${T} ${N}：先算 <code>${esc(t)}</code> → ${pre&&pre!==t?esc(pre)+" = ":""}${raw}${raw!==shown?`，存成 ${T} 變成 ${shown}`:""}，放進 ${esc(it.name)}。`)}
+      }else if(d.type==="priority_queue"){
+        S.changed.add(v.id+":0");
+        parts.push(`宣告 <code>priority_queue&lt;${TNAME[d.elem]}&gt;</code> ${N}${d.elem2==="min"?"（由小到大）":""}：一個空的優先佇列。push 進去的東西會自動排好，top() 永遠是<b>最${d.elem2==="min"?"小":"大"}</b>的那一個，pop() 就把它拿走。`);
       }else if(d.type==="queue"){
         S.changed.add(v.id+":0");
         parts.push(`宣告 <code>queue&lt;${TNAME[d.elem]}&gt;</code> ${N}：一個空的 queue，裡面還沒有東西。之後用 push 從<b>後面</b>放進去、pop 從<b>前面</b>拿出來，像排隊一樣。`);

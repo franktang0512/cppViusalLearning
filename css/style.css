@@ -392,3 +392,4 @@ svg.arrows circle,svg.arrows marker path{fill:var(--accent)}
 .htree .cell .cv{height:28px}
 .htree .cell .ci{font-size:.66rem;letter-spacing:-.02em}
 .htree .twho{position:relative;z-index:3}.htree .twho:not(:empty){background:var(--panel);border-radius:4px;padding:0 3px;width:max-content;margin:0 auto}
+.htree .twho .old{opacity:.4;font-weight:500}.htree .twho .tin{color:var(--muted);font-weight:500}
