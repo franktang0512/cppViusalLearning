@@ -26,7 +26,11 @@ function renderNav(){
         (ch.soon.length?`<ul class="soon-list">${ch.soon.map(s=>`<li>${s}</li>`).join("")}</ul>`:"")+`</div>`;
     }
   }
-  $("nav").innerHTML=h;
+  // 重畫目錄時保留捲動的位置，點了以後不會跳回最上面；第一次打開時捲到目前這一課
+  const nav=$("nav"),keep=nav.scrollTop,first=!nav.dataset.drawn;
+  nav.innerHTML=h;nav.dataset.drawn="1";
+  if(first){const cur=nav.querySelector('[aria-current="true"]');if(cur)cur.scrollIntoView({block:"center"})}
+  else nav.scrollTop=keep;
   $("nav").querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{openLesson(b.dataset.l);setMode("cpp");$("nav").classList.remove("open")});
 }
 
