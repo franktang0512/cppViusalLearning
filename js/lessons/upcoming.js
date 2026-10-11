@@ -1,11 +1,12 @@
 /* ---------- 還沒寫的章節（只有大綱） ---------- */
 CHAPTERS.push(
-{part:"進階程式設計",id:17,title:"圖",soon:["鄰接矩陣與鄰接串列","DFS 與 BFS","網格最短路徑","拓撲排序","Dijkstra","並查集"]},
 {part:"最佳化專論",id:18,title:"窮舉",soon:["巢狀迴圈窮舉","回溯與剪枝","位元枚舉"]},
 {part:"最佳化專論",id:19,title:"貪心",soon:["區間排程","貪心失敗的反例"]},
 {part:"最佳化專論",id:20,title:"動態規劃",soon:["從記憶化到填表","爬樓梯","0/1 背包","LCS"]},
-{part:"Case Study",id:21,title:"前綴和與差分",soon:[]},
-{part:"Case Study",id:22,title:"雙指標",soon:[]},
-{part:"Case Study",id:23,title:"滑動視窗",soon:[]},
-{part:"Case Study",id:24,title:"大數運算",soon:[]}
+{part:"最佳化專論",id:21,title:"圖論（二）：生成樹與最短路徑",soon:["有權重的圖：矩陣存權重、串列存 struct","最小生成樹：並查集、Kruskal（貪心）","最小生成樹：Prim","有權重時 BFS 不夠：Dijkstra（陣列版）","Dijkstra（priority_queue 版）","Floyd-Warshall（動態規劃）"]},
+{part:"Case Study",id:22,title:"前綴和與差分",soon:[]},
+{part:"Case Study",id:23,title:"雙指標",soon:[]},
+{part:"Case Study",id:24,title:"滑動視窗",soon:[]},
+{part:"Case Study",id:25,title:"大數運算",soon:[]},
+{part:"Case Study",id:26,title:"圖論延伸",soon:["拓撲排序與判斷環","Bellman-Ford 與負權重環","二分圖判斷","最大流：增廣路徑、反向邊、Edmonds-Karp","最大匹配"]}
 );

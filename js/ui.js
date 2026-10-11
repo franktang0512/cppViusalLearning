@@ -198,7 +198,7 @@ function render(flash){
   const legend=!ST.error&&k>=1&&k<=2?`<div class="hint" style="margin-bottom:4px">黃色＝剛剛執行的那一行，底線＝那一行裡正在執行的部分，▸＝下一步。</div>`:"";
   const ask=(k===0&&L.predict&&!ST.error)?`<div class="ask"><b>先猜猜看：</b>${esc(L.predict)}</div>`:(s&&s.done&&L.ask)?`<div class="ask"><b>想一想：</b>${esc(L.ask)}</div>`:"";
   $("note").innerHTML=legend+note+ask;
-  renderMem(s,flash);renderTT();renderIO(s,flash);renderJudge(s);
+  renderMem(s,flash);renderTT();renderIO(s,flash);renderJudge(s);renderGraph(L,s);
 }
 
 function memLegend(s){

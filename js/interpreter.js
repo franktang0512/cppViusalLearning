@@ -100,7 +100,8 @@ function parse(src){
   }
   let lastElem=null,lastElem2=null;
   // 收尾的 >：vector<vector<int>> 最後的 >> 要拆成兩個 >
-  const closeAngle=()=>{if(is(">>")){T[p]={...T[p],v:">",s:T[p].s+1};return}expect(">")};
+  // vector<vector<int>> 的 >> 拆成兩個 >（直接拆開 token，往回重讀時才不會出錯）
+  const closeAngle=()=>{if(is(">>")){const t=T[p];T.splice(p,1,{...t,v:">",e:t.s+1},{...t,v:">",s:t.s+1});next();return}expect(">")};
   // struct 名稱 { 型別 欄位; ... };  → 算出每個欄位的位移（含對齊）
   function parseStructDef(){
     next();const nm=next();if(nm.t!=="id")throw cerr(nm.s,"struct 後面要接名稱，例如 struct Student");
@@ -309,7 +310,7 @@ function parse(src){
       const save=p;let ret="void",retElem=null,retS=null;if(is("void"))next();else{ret=parseType();if(ret==="struct")retS=lastSdef}
       if(ret!=="void"&&is("*")&&peek(1).t==="id"&&is("(",2)){next();retElem=ret;ret="ptr";retS=null}
       const nm=peek();
-      if(nm.t==="id"&&is("(",1)){
+      if(nm.t==="id"&&is("(",1)&&(is(")",2)||is("void",2)||isType(2))){
         next();expect("(");const params=parseParams();expect(")");
         if(is(";")){next();known.add(nm.v);protos[nm.v]=params;continue}  // 只有宣告（函式原型），定義在後面
         const pr=protos[nm.v];
