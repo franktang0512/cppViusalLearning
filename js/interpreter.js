@@ -3,6 +3,8 @@ const SIZE={int:4,ll:8,double:8,char:1,bool:1,string:32,stack:48,queue:48,deque:
 const TNAME={int:"int",ll:"long long",double:"double",char:"char",bool:"bool",string:"string",stack:"stack",queue:"queue",deque:"deque",vector:"vector",list:"list",priority_queue:"priority_queue",ptr:"指標",struct:"struct"};
 const GARB={int:[32764,4199,-1294,21845,7,-86,1,6422,-17,327],ll:[140737488355,4198400],double:[6.95e-310],char:[-52,113,-91,64,7],bool:[0]};
 const LIMIT=3000;
+// 中英切換：Tx(中文, 英文)（execDecl 裡 T 是型別名稱，所以這個檔案一律用 Tx）
+const Tx=(zh,en)=>typeof T==="function"?T(zh,en):zh;
 const BRK={brk:1},CNT={cnt:1},RET={ret:1},LIM={lim:1};
 const KW=new Set(["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","priority_queue","void","if","else","while","for","break","continue","return","true","false","const","using","namespace","unsigned","struct","new","delete"]);
 const CONTS=["stack","queue","deque","vector","list","priority_queue"];
@@ -65,14 +67,14 @@ function tokenize(src){
     }
     if(/[A-Za-z_]/.test(c)){while(i<n&&/[A-Za-z0-9_]/.test(src[i]))i++;const w=src.slice(st,i);toks.push({t:KW.has(w)?"kw":"id",v:w,s:st,e:i});continue}
     if(c==='"'){i++;let v="";while(i<n&&src[i]!=='"'&&src[i]!=="\n"){if(src[i]==="\\"){v+=unesc(src[i+1]);i+=2}else v+=src[i++]}
-      if(src[i]!=='"')throw cerr(st,'字串少了結尾的雙引號 "');i++;toks.push({t:"str",v,s:st,e:i});continue}
+      if(src[i]!=='"')throw cerr(st,Tx('字串少了結尾的雙引號 "','The string is missing its closing double quote "'));i++;toks.push({t:"str",v,s:st,e:i});continue}
     if(c==="'"){i++;let v;if(src[i]==="\\"){v=unesc(src[i+1]);i+=2}else v=src[i++];
-      if(src[i]!=="'")throw cerr(st,"字元要用單引號包住「一個」字，例如 'A'；好幾個字要用雙引號");i++;toks.push({t:"chr",v:(v||"\0").charCodeAt(0),s:st,e:i});continue}
+      if(src[i]!=="'")throw cerr(st,Tx("字元要用單引號包住「一個」字，例如 'A'；好幾個字要用雙引號","A char is ONE character inside single quotes, like 'A'. For many characters, use double quotes."));i++;toks.push({t:"chr",v:(v||"\0").charCodeAt(0),s:st,e:i});continue}
     let op=ops.find(o=>src.startsWith(o,i));
     if(!op&&"+-*/%<>=!(){}[];,&|^?:.".includes(c))op=c;
     if(!op){
-      if(c.charCodeAt(0)>127)throw cerr(st,`看不懂「${c}」。是不是打成全形符號了？程式碼裡的符號都要用半形。`);
-      throw cerr(st,`看不懂的符號「${c}」`);
+      if(c.charCodeAt(0)>127)throw cerr(st,Tx(`看不懂「${c}」。是不是打成全形符號了？程式碼裡的符號都要用半形。`,`Cannot read "${c}". Is it a full-width symbol? Symbols in code must be half-width.`));
+      throw cerr(st,Tx(`看不懂的符號「${c}」`,`Unknown symbol "${c}"`));
     }
     i+=op.length;toks.push({t:"op",v:op,s:st,e:i});
   }
@@ -84,7 +86,7 @@ function parse(src){
   const T=tokenize(src);let p=0;
   const peek=(k=0)=>T[Math.min(p+k,T.length-1)],next=()=>T[p++];
   const is=(v,k=0)=>{const t=peek(k);return(t.t==="op"||t.t==="kw")&&t.v===v};
-  const expect=(v,hint)=>{if(!is(v)){const t=peek();const at=hint==="semi"?T[p-1].e:t.s;throw cerr(at,hint==="semi"?"這行結尾好像少了分號 ;":`這裡應該要有「${v}」`)}return next()};
+  const expect=(v,hint)=>{if(!is(v)){const t=peek();const at=hint==="semi"?T[p-1].e:t.s;throw cerr(at,hint==="semi"?Tx("這行結尾好像少了分號 ;","This line seems to be missing a semicolon ;"):Tx(`這裡應該要有「${v}」`,`Expected "${v}" here`))}return next()};
   const TYPES=["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","priority_queue","const","unsigned"];
   const structs={};let lastSdef=null;
   const isType=(k=0)=>{const t=peek(k);return t.t==="kw"&&(TYPES.includes(t.v)||t.v==="struct")||t.t==="id"&&!!structs[t.v]||t.t==="id"&&t.v==="pair"&&is("<",k+1)};
@@ -108,7 +110,7 @@ function parse(src){
         if(is(",")){next();parseType();expect(",");const g=next();if(g.v!=="greater"&&g.v!=="less")throw cerr(g.s,"第三個參數要寫 greater<型別> 或 less<型別>");
           expect("<");parseType();closeAngle();inner2=g.v==="greater"?"min":"max"}}
       lastElem=el;lastElem2=inner2;lastESdef=esd;closeAngle();return t.v}
-    if(!["int","double","char","bool","string"].includes(t.v))throw cerr(t.s,"這裡應該是型別，例如 int");
+    if(!["int","double","char","bool","string"].includes(t.v))throw cerr(t.s,Tx("這裡應該是型別，例如 int","A type is expected here, like int"));
     return t.v;
   }
   let lastElem=null,lastElem2=null,lastESdef=null;  // 容器裡放什麼（lastESdef：放 struct / pair 時是哪一種）
@@ -122,7 +124,7 @@ function parse(src){
     const o=expect("{"),fields=[],sd={name:nm.v,fields,size:0};
     structs[nm.v]=sd;  // 先登記名字，欄位裡才能寫 Node *next;
     while(!is("}")){
-      if(peek().t==="eof")throw cerr(o.s,"這個 { 沒有對應的 }");
+      if(peek().t==="eof")throw cerr(o.s,Tx("這個 { 沒有對應的 }","This { has no matching }"));
       if(!isType())throw cerr(peek().s,"struct 裡面要寫欄位，例如 int score;");
       const ft=peek(),type=parseType(),fsd=type==="struct"?lastSdef:null;
       if(type==="stack"||type==="queue"||type==="priority_queue")throw cerr(ft.s,"這個網頁還不支援在 struct 裡放 stack");
@@ -157,7 +159,7 @@ function parse(src){
     do{
       let ref=false;if(is("&")){next();ref=true}
       let ptr=false;while(is("*")){next();if(ptr)throw cerr(peek().s,"這個網頁還不支援指標的指標（**）");ptr=true}
-      const id=next();if(id.t!=="id")throw cerr(id.s,"型別後面要接變數名稱");
+      const id=next();if(id.t!=="id")throw cerr(id.s,Tx("型別後面要接變數名稱","A type must be followed by a variable name"));
       const it={name:id.v,s:id.s,ptr,ref};
       if(is("(")&&["vector","deque","list"].includes(type)){next();it.ctor=[];if(!is(")")){do{it.ctor.push(parseAssign())}while(is(",")&&next())}expect(")")}
       if(ref&&!is("="))throw cerr(id.s,`參考（別名）宣告時一定要綁定一個變數，例如 int &${id.v} = a;`);
@@ -175,7 +177,7 @@ function parse(src){
   }
   function parseBlock(){
     const o=expect("{");const body=[];
-    while(!is("}")){if(peek().t==="eof")throw cerr(o.s,"這個 { 沒有對應的 }");body.push(parseStmt())}
+    while(!is("}")){if(peek().t==="eof")throw cerr(o.s,Tx("這個 { 沒有對應的 }","This { has no matching }"));body.push(parseStmt())}
     const c=next();return{k:"block",body,s:o.s,e:c.e,close:c.s};
   }
   function parseStmt(){
@@ -200,7 +202,7 @@ function parse(src){
     if(is("return")){next();const x=is(";")?null:parseExpr();expect(";","semi");return{k:"return",x,s:t.s,e:T[p-1].e}}
     if(is("struct")&&peek(1).t==="id"&&is("{",2)){parseStructDef();return{k:"empty",s:t.s,e:T[p-1].e}}
     if(is("delete")){next();if(is("["))throw cerr(peek().s,"這個網頁還不支援 delete[]");const x=parseExpr();expect(";","semi");return{k:"delete",x,s:t.s,e:T[p-1].e}}
-    if(is("else"))throw cerr(t.s,"這個 else 找不到對應的 if。檢查上面的 if 是不是多了分號，或大括號沒配對");
+    if(is("else"))throw cerr(t.s,Tx("這個 else 找不到對應的 if。檢查上面的 if 是不是多了分號，或大括號沒配對","This else has no matching if. Check for an extra semicolon after the if, or braces that do not match."));
     if(isType()){const d=parseDecl();expect(";","semi");return d}
     const x=parseExpr();expect(";","semi");return{k:"expr",x,s:x.s,e:x.e};
   }
@@ -209,7 +211,7 @@ function parse(src){
     const l=parseOr();
     if(peek().t==="op"&&["=","+=","-=","*=","/=","%="].includes(peek().v)){
       const op=next().v;const r=parseAssign();
-      if(!["var","idx","deref","mem"].includes(l.k))throw cerr(l.s,"等號左邊必須是變數");
+      if(!["var","idx","deref","mem"].includes(l.k))throw cerr(l.s,Tx("等號左邊必須是變數","The left side of = must be a variable"));
       return{k:"assign",op,l,r,s:l.s,e:r.e};
     }
     return l;
@@ -220,13 +222,13 @@ function parse(src){
   function parseShift(){
     skipStd();const t=peek();
     if(t.t==="id"&&t.v==="cin"&&!is(".",1)){next();
-      if(is("<<"))throw cerr(peek().s,"cin 要用 >>（箭頭指向變數，資料流進變數裡）");
-      const targets=[];while(is(">>")){const op=next();const x=parseUnary();if(!["var","idx","deref","mem"].includes(x.k))throw cerr(x.s,"cin >> 後面要接變數");targets.push({x,s:op.s,e:x.e})}
-      if(!targets.length)throw cerr(t.s,"cin 後面要接 >> 變數");return{k:"cin",targets,s:t.s,e:T[p-1].e}}
+      if(is("<<"))throw cerr(peek().s,Tx("cin 要用 >>（箭頭指向變數，資料流進變數裡）","cin uses >> (the arrow points to the variable: data flows into it)"));
+      const targets=[];while(is(">>")){const op=next();const x=parseUnary();if(!["var","idx","deref","mem"].includes(x.k))throw cerr(x.s,Tx("cin >> 後面要接變數","cin >> must be followed by a variable"));targets.push({x,s:op.s,e:x.e})}
+      if(!targets.length)throw cerr(t.s,Tx("cin 後面要接 >> 變數","cin must be followed by >> variable"));return{k:"cin",targets,s:t.s,e:T[p-1].e}}
     if(t.t==="id"&&t.v==="cout"){next();
-      if(is(">>"))throw cerr(peek().s,"cout 要用 <<（資料流向螢幕）");
+      if(is(">>"))throw cerr(peek().s,Tx("cout 要用 <<（資料流向螢幕）","cout uses << (data flows to the screen)"));
       const items=[];while(is("<<")){next();skipStd();items.push(parseAdd())}
-      if(!items.length)throw cerr(t.s,"cout 後面要接 << 要印的東西");return{k:"cout",items,s:t.s,e:T[p-1].e}}
+      if(!items.length)throw cerr(t.s,Tx("cout 後面要接 << 要印的東西","cout must be followed by << and what to print"));return{k:"cout",items,s:t.s,e:T[p-1].e}}
     // 位元的左移、右移：1 << n、x >> i（cout、cin 開頭的已經在上面處理了）
     let l=parseAdd();
     while(is("<<")||is(">>")){const op=next().v;const r=parseAdd();l={k:"bin",op,l,r,s:l.s,e:r.e}}
@@ -303,8 +305,8 @@ function parse(src){
       return{k:"var",name:t.v,s:t.s,e:t.e};
     }
     if(t.t==="op"&&t.v==="("){const x=parseExpr();const c=expect(")");return{...x,s:t.s,e:c.e,paren:true}}
-    if(t.t==="eof")throw cerr(t.s,"程式好像還沒寫完（少了 } 或 ;？）");
-    throw cerr(t.s,`這裡不該出現「${t.v}」`);
+    if(t.t==="eof")throw cerr(t.s,Tx("程式好像還沒寫完（少了 } 或 ;？）","The program seems unfinished (missing } or ;?)"));
+    throw cerr(t.s,Tx(`這裡不該出現「${t.v}」`,`"${t.v}" should not be here`));
   }
   function parseParams(){
     const ps=[];if(is(")"))return ps;
@@ -355,12 +357,12 @@ function parse(src){
       }
       p=save;prog.globals.push(parseDecl());expect(";","semi");continue;
     }
-    throw cerr(peek().s,`看不懂「${peek().v}」`);
+    throw cerr(peek().s,Tx(`看不懂「${peek().v}」`,`Cannot read "${peek().v}"`));
   }
   for(const c of late)throw cerr(c.s,prog.funcs[c.f]
     ?`要先宣告才能呼叫：${c.f}() 寫在呼叫它的地方後面。把整個 ${c.f} 函式搬到上面，或在上面先寫一行函式原型（例如 int ${c.f}(int n);）。`
     :`找不到函式 ${c.f}()。是不是名字打錯了，或還沒寫這個函式？`);
-  if(!prog.main)throw cerr(0,"找不到 int main() { ... }");
+  if(!prog.main)throw cerr(0,Tx("找不到 int main() { ... }","Cannot find int main() { ... }"));
   return prog;
 }
 
@@ -389,7 +391,7 @@ function run(prog,src,input){
   function lookup(name,node){
     for(let i=S.scopes.length-1;i>=0;i--){const v=S.scopes[i].get(name);if(v)return v}
     if(name==="cin"||name==="cout")throw rterr(node,`${name} 必須寫在算式的最前面`);
-    throw rterr(node,`變數 <code>${esc(name)}</code> 還沒有宣告就使用了（真正的 C++ 會出現編譯錯誤）。`);
+    throw rterr(node,Tx(`變數 <code>${esc(name)}</code> 還沒有宣告就使用了（真正的 C++ 會出現編譯錯誤）。`,`The variable <code>${esc(name)}</code> is used before it is declared (real C++ gives a compile error).`));
   }
   let declElem=null,declSdef=null,declElem2=null,declESdef=null;
   function fresh(ft,global){
@@ -400,7 +402,7 @@ function run(prog,src,input){
   }
   function declare(type,name,len,node,global){
     const sc=S.scopes[S.scopes.length-1];
-    if(sc.has(name))throw rterr(node,`<code>${esc(name)}</code> 在同一個區塊裡宣告了兩次（真正的 C++ 會編譯錯誤）。`);
+    if(sc.has(name))throw rterr(node,Tx(`<code>${esc(name)}</code> 在同一個區塊裡宣告了兩次（真正的 C++ 會編譯錯誤）。`,`<code>${esc(name)}</code> is declared twice in the same block (real C++ gives a compile error).`));
     const n=len??1,sd=type==="struct"?declSdef:null,sz=sd?sd.size:SIZE[type];
     const v={id:idc++,name,type,elem:declElem,elem2:declElem2,isArr:len!=null,len:n,addr:global?S.gaddr:S.addr,values:[],init:[],scope:global?"global":S.frames[S.frames.length-1].key};
     if(sd)v.sdef=sd;
@@ -426,7 +428,7 @@ function run(prog,src,input){
     const freed=[...sc.entries()].filter(([k])=>!(sc.aliases&&sc.aliases.has(k))).map(([,v])=>v);if(!freed.length)return;
     S.vars=S.vars.filter(v=>!freed.includes(v));
     S.addr=Math.min(S.addr,...freed.filter(v=>v.scope!=="global").map(v=>v.addr));
-    if(at)snap(at,msg(freed.map(v=>`<code>${esc(v.name)}</code>`).join("、")));
+    if(at)snap(at,msg(freed.map(v=>`<code>${esc(v.name)}</code>`).join(Tx("、",", "))));
   }
   function conv(type,val){
     let v=val.v;
@@ -438,7 +440,7 @@ function run(prog,src,input){
     if(type==="double")return v;
     if(type==="bool")return v!==0?1:0;
     v=Math.trunc(v);
-    if(type==="int"){const w=v|0;if(w!==v)note(`⚠ ${v} 超出 int 能存的範圍（−2147483648 ～ 2147483647），發生<b>溢位</b>，變成 ${w}。`);return w}
+    if(type==="int"){const w=v|0;if(w!==v)note(Tx(`⚠ ${v} 超出 int 能存的範圍（−2147483648 ～ 2147483647），發生<b>溢位</b>，變成 ${w}。`,`⚠ ${v} is out of the int range (−2147483648 to 2147483647). It <b>overflows</b> and becomes ${w}.`));return w}
     if(type==="char")return(v<<24)>>24;
     return v;
   }
@@ -497,12 +499,12 @@ function run(prog,src,input){
     }
     const t=Math.max(rank(a.t),rank(b.t))===3?"double":Math.max(rank(a.t),rank(b.t))===2?"ll":"int";
     const x=a.v,y=b.v;let r;
-    if((op==="/"||op==="%")&&t!=="double"&&y===0)throw rterr(node,"除以 0！程式在這裡當掉了（Runtime Error）。");
-    if(op==="%"&&t==="double")throw rterr(node,"% 只能用在整數上（真正的 C++ 會編譯錯誤）。");
+    if((op==="/"||op==="%")&&t!=="double"&&y===0)throw rterr(node,Tx("除以 0！程式在這裡當掉了（Runtime Error）。","Division by 0! The program crashes here (Runtime Error)."));
+    if(op==="%"&&t==="double")throw rterr(node,Tx("% 只能用在整數上（真正的 C++ 會編譯錯誤）。","% works only with integers (real C++ gives a compile error)."));
     if(op==="+")r=x+y;else if(op==="-")r=x-y;else if(op==="*")r=x*y;
-    else if(op==="/"){r=t==="double"?x/y:Math.trunc(x/y);if(t!=="double"&&x%y!==0)note(`ℹ ${x} / ${y}：兩邊都是整數 → <b>整數除法</b>，小數部分直接丟掉，得到 ${r}。`)}
+    else if(op==="/"){r=t==="double"?x/y:Math.trunc(x/y);if(t!=="double"&&x%y!==0)note(Tx(`ℹ ${x} / ${y}：兩邊都是整數 → <b>整數除法</b>，小數部分直接丟掉，得到 ${r}。`,`ℹ ${x} / ${y}: both sides are integers → <b>integer division</b>. The decimal part is dropped, so the result is ${r}.`))}
     else r=x%y;
-    if(t==="int"){const w=op==="*"?Math.imul(x,y):(r|0);if(w!==r){note(`⚠ ${x} ${op} ${y} = ${r} 超出 int 的範圍，發生<b>溢位</b>，結果變成 ${w}。`);r=w}}
+    if(t==="int"){const w=op==="*"?Math.imul(x,y):(r|0);if(w!==r){note(Tx(`⚠ ${x} ${op} ${y} = ${r} 超出 int 的範圍，發生<b>溢位</b>，結果變成 ${w}。`,`⚠ ${x} ${op} ${y} = ${r} is out of the int range. It <b>overflows</b>, and the result becomes ${w}.`));r=w}}
     return{t,v:r};
   }
   function contOf(n){
@@ -586,7 +588,7 @@ function run(prog,src,input){
         if(bad.length)note(`⚠ <code>${esc(r.label)}</code> 的 ${bad.map(b=>`<code>${esc(b)}</code>`).join("、")} 還沒給過值，複製過去的是<b>垃圾值</b>。`)}
       return peekv(r);
     }
-    if(!S.quiet){S.read.add(r.key);if(!r.v.init[r.i])note(`⚠ <code>${esc(r.label)}</code> 還沒給過值，讀到的是<b>垃圾值</b> ${fmtVal(tyOf(r),r.v.values[r.i])}。`)}
+    if(!S.quiet){S.read.add(r.key);if(!r.v.init[r.i])note(Tx(`⚠ <code>${esc(r.label)}</code> 還沒給過值，讀到的是<b>垃圾值</b> ${fmtVal(tyOf(r),r.v.values[r.i])}。`,`⚠ <code>${esc(r.label)}</code> has no value yet, so it reads a <b>garbage value</b> ${fmtVal(tyOf(r),r.v.values[r.i])}.`))}
     return{t:tyOf(r),v:r.v.values[r.i]};
   }
   function store(r,val){
@@ -861,9 +863,10 @@ function run(prog,src,input){
   function evCout(n){
     let s="";
     for(const it of n.items){const ca=charArr(it);if(it.k==="endl")s+="\n";else if(it.k==="str")s+=it.v;else if(ca)s+=charArrText(ca,it);
-      else if(it.k==="var"&&it.name==="fixed"){S.fixed=true;note(`ℹ <code>fixed</code>：之後印小數，都固定印到<b>小數點後 ${S.prec??6} 位</b>（setprecision 決定幾位），會四捨五入、不足補 0。這個設定會一直有效。`)}
+      else if(it.k==="var"&&it.name==="fixed"){S.fixed=true;note(Tx(`ℹ <code>fixed</code>：之後印小數，都固定印到<b>小數點後 ${S.prec??6} 位</b>（setprecision 決定幾位），會四捨五入、不足補 0。這個設定會一直有效。`,`ℹ <code>fixed</code>: from now on, decimals are printed with <b>${S.prec??6} digits after the decimal point</b> (setprecision decides how many). It rounds, and adds 0s if needed. This setting stays on.`))}
       else if(it.k==="setprec"){const q=Math.trunc(ev(it.x).v);if(q<0)throw rterr(it,"setprecision 的位數不能是負的");S.prec=q;
-        note(S.fixed?`ℹ <code>${esc(txt(it))}</code>：之後的小數印到<b>小數點後 ${q} 位</b>。這個設定會一直有效。`:`ℹ <code>${esc(txt(it))}</code>：還沒寫 fixed，所以 ${q} 是「<b>有效位數</b>」（從第一個不是 0 的數字開始算 ${q} 位）。要固定小數點後幾位，前面要加 <code>fixed</code>。`)}
+        note(S.fixed?Tx(`ℹ <code>${esc(txt(it))}</code>：之後的小數印到<b>小數點後 ${q} 位</b>。這個設定會一直有效。`,`ℹ <code>${esc(txt(it))}</code>: from now on, decimals are printed with <b>${q} digits after the decimal point</b>. This setting stays on.`)
+          :Tx(`ℹ <code>${esc(txt(it))}</code>：還沒寫 fixed，所以 ${q} 是「<b>有效位數</b>」（從第一個不是 0 的數字開始算 ${q} 位）。要固定小數點後幾位，前面要加 <code>fixed</code>。`,`ℹ <code>${esc(txt(it))}</code>: there is no fixed yet, so ${q} means <b>significant digits</b> (counted from the first digit that is not 0). To fix the digits after the decimal point, add <code>fixed</code> first.`))}
       else{const x=ev(it);if(x.t==="struct")throw rterr(it,`cout 不能直接印整個 struct，要一個欄位一個欄位印，例如 cout << ${esc(txt(it))}.${esc(x.v.sdef.fields[0].name)}`);s+=x.t==="double"?(S.fixed?x.v.toFixed(Math.min(S.prec??6,100)):fmtDouble(x.v,S.prec??6)):fmtOut(x)}}
     S.out+=s;S.lastCout=s;return B(1);
   }
@@ -874,19 +877,19 @@ function run(prog,src,input){
       if(ca){ok=readCharArr(ca,tg)&&ok;continue}
       const r=ref(tg.x);const L=`<b>${esc(r.label)}</b>`,ty=tyOf(r);let msg;
       if(r.whole)throw rterr(tg.x,`cin 不能一次讀進整個 struct，要一個欄位一個欄位讀，例如 cin >> ${esc(r.label)}.${esc(r.v.sdef.fields[0].name)}`);
-      if(S.fail){ok=false;msg=`cin 之前已經失敗了，這次<b>什麼都不做</b>，${L} 保持原值。`}
+      if(S.fail){ok=false;msg=Tx(`cin 之前已經失敗了，這次<b>什麼都不做</b>，${L} 保持原值。`,`cin has already failed, so this time it <b>does nothing</b>. ${L} keeps its old value.`)}
       else{
         let p=S.pos;while(p<S.inp.length&&/\s/.test(S.inp[p]))p++;
         const skipped=p>S.pos;
-        if(p>=S.inp.length){S.pos=p;S.fail=true;ok=false;msg=`輸入緩衝區已經沒有資料了（讀到結尾 <b>EOF</b>）→ 讀取失敗，${L} 保持原值。`}
-        else if(ty==="string"){const m=S.inp.slice(p).match(/^\S+/)[0];store(r,{t:"string",v:m});S.lastRead=[p,p+m.length];S.pos=p+m.length;msg=`${skipped?"跳過空白和換行，":""}string 一路讀到空白或換行為止：讀出「${esc(m)}」放進 ${L}。`}
-        else if(ty==="char"){store(r,{t:"char",v:S.inp.charCodeAt(p)});S.lastRead=[p,p+1];S.pos=p+1;msg=`${skipped?"跳過空白和換行，":""}char 只拿<b>一個字元</b>：讀出「${esc(S.inp[p])}」放進 ${L}。`}
+        if(p>=S.inp.length){S.pos=p;S.fail=true;ok=false;msg=Tx(`輸入緩衝區已經沒有資料了（讀到結尾 <b>EOF</b>）→ 讀取失敗，${L} 保持原值。`,`There is no more input (the end, <b>EOF</b>) → reading fails. ${L} keeps its old value.`)}
+        else if(ty==="string"){const m=S.inp.slice(p).match(/^\S+/)[0];store(r,{t:"string",v:m});S.lastRead=[p,p+m.length];S.pos=p+m.length;msg=Tx(`${skipped?"跳過空白和換行，":""}string 一路讀到空白或換行為止：讀出「${esc(m)}」放進 ${L}。`,`${skipped?"Skip spaces and newlines. ":""}A string reads until a space or newline: read "${esc(m)}" and put it in ${L}.`)}
+        else if(ty==="char"){store(r,{t:"char",v:S.inp.charCodeAt(p)});S.lastRead=[p,p+1];S.pos=p+1;msg=Tx(`${skipped?"跳過空白和換行，":""}char 只拿<b>一個字元</b>：讀出「${esc(S.inp[p])}」放進 ${L}。`,`${skipped?"Skip spaces and newlines. ":""}A char takes <b>only one character</b>: read "${esc(S.inp[p])}" and put it in ${L}.`)}
         else{
           const rest=S.inp.slice(p);
           const m=ty==="double"?rest.match(/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/):rest.match(/^[+-]?\d+/);
-          if(!m){store(r,{t:"int",v:0});S.fail=true;ok=false;S.pos=p;msg=`讀到「${esc(S.inp[p])}」，不是數字 → <b>讀取失敗</b>，${L} 被設成 0。<br>從現在開始，所有的 cin 都會直接失敗。`}
+          if(!m){store(r,{t:"int",v:0});S.fail=true;ok=false;S.pos=p;msg=Tx(`讀到「${esc(S.inp[p])}」，不是數字 → <b>讀取失敗</b>，${L} 被設成 0。<br>從現在開始，所有的 cin 都會直接失敗。`,`Read "${esc(S.inp[p])}". It is not a number → <b>reading fails</b>, and ${L} is set to 0.<br>From now on, every cin fails right away.`)}
           else{store(r,{t:ty==="double"?"double":"ll",v:ty==="double"?parseFloat(m[0]):parseInt(m[0],10)});S.lastRead=[p,p+m[0].length];S.pos=p+m[0].length;
-            msg=`${skipped?"跳過前面的空白和換行，":""}讀出「${esc(m[0])}」，轉成數字放進 ${L}。`}
+            msg=Tx(`${skipped?"跳過前面的空白和換行，":""}讀出「${esc(m[0])}」，轉成數字放進 ${L}。`,`${skipped?"Skip the spaces and newlines. ":""}Read "${esc(m[0])}", turn it into a number, and put it in ${L}.`)}
         }
       }
       snap(tg,msg);
@@ -1100,20 +1103,20 @@ function run(prog,src,input){
     if(!I)return null;
     const L=`<b>${esc(I.label)}</b>`;
     if(I.kind==="msg")return I.text;
-    if(I.kind==="inc")return`<code>${esc(I.label)}${I.op}</code>：${L} 從 ${I.old} 變成 ${I.now}。`;
-    if(I.op!=="="){const o=I.op[0];return`<code>${esc(I.label)} ${I.op} ${esc(I.text)}</code> 就是 ${esc(I.label)} = ${esc(I.label)} ${o} ${esc(I.text)}：${I.old} ${o} ${I.rv} = ${I.val}。`}
-    const over=I.oldInit&&I.old!==I.val?` 原本的 ${I.old} 被蓋掉了。`:"";
-    const conv=I.raw!==I.val?`，存進 ${esc(I.label)} 變成 ${I.val}`:"";
-    if(I.rk==="lit")return`把 ${I.val} 放進 ${L}。${over}`;
-    if(I.rk==="var"||I.rk==="idx")return`把 <code>${esc(I.text)}</code> 的值 ${I.rv} 複製一份，放進 ${L}${conv}。${over}`;
+    if(I.kind==="inc")return Tx(`<code>${esc(I.label)}${I.op}</code>：${L} 從 ${I.old} 變成 ${I.now}。`,`<code>${esc(I.label)}${I.op}</code>: ${L} changes from ${I.old} to ${I.now}.`);
+    if(I.op!=="="){const o=I.op[0];return Tx(`<code>${esc(I.label)} ${I.op} ${esc(I.text)}</code> 就是 ${esc(I.label)} = ${esc(I.label)} ${o} ${esc(I.text)}：${I.old} ${o} ${I.rv} = ${I.val}。`,`<code>${esc(I.label)} ${I.op} ${esc(I.text)}</code> means ${esc(I.label)} = ${esc(I.label)} ${o} ${esc(I.text)}: ${I.old} ${o} ${I.rv} = ${I.val}.`)}
+    const over=I.oldInit&&I.old!==I.val?Tx(` 原本的 ${I.old} 被蓋掉了。`,` The old value ${I.old} is replaced.`):"";
+    const conv=I.raw!==I.val?Tx(`，存進 ${esc(I.label)} 變成 ${I.val}`,`; stored in ${esc(I.label)}, it becomes ${I.val}`):"";
+    if(I.rk==="lit")return Tx(`把 ${I.val} 放進 ${L}。${over}`,`Put ${I.val} in ${L}.${over}`);
+    if(I.rk==="var"||I.rk==="idx")return Tx(`把 <code>${esc(I.text)}</code> 的值 ${I.rv} 複製一份，放進 ${L}${conv}。${over}`,`Copy the value of <code>${esc(I.text)}</code> (${I.rv}) and put it in ${L}${conv}.${over}`);
     const sub=I.sub&&I.sub!==I.text?`${esc(I.sub)} = `:"";
-    return`先算右邊 <code>${esc(I.text)}</code> → ${sub}${I.raw}${conv}，再放進 ${L}。${over}`;
+    return Tx(`先算右邊 <code>${esc(I.text)}</code> → ${sub}${I.raw}${conv}，再放進 ${L}。${over}`,`First compute the right side <code>${esc(I.text)}</code> → ${sub}${I.raw}${conv}, then put it in ${L}.${over}`);
   }
   function execExpr(x,prefix=""){
     if(x.k==="cin"||x.k==="getline"||x.k==="ucall"||x.k==="method"&&x.obj.k==="var"&&x.obj.name==="cin"){ev(x);return}
-    if(x.k==="cout"){ev(x);snap(x,`${prefix}印到螢幕：${vis(S.lastCout)}`);return}
+    if(x.k==="cout"){ev(x);snap(x,`${prefix}${Tx("印到螢幕：","Print to the screen: ")}${vis(S.lastCout)}`);return}
     S.info=null;ev(x);
-    snap(x,prefix+(exprNote(S.info)||`計算 <code>${esc(txt(x))}</code>。`));
+    snap(x,prefix+(exprNote(S.info)||Tx(`計算 <code>${esc(txt(x))}</code>。`,`Compute <code>${esc(txt(x))}</code>.`)));
   }
   // 參考：在目前的區塊裡多一個名字，指到同一個變數，不開新的格子
   function declAlias(it,type,sd){
@@ -1266,9 +1269,10 @@ function run(prog,src,input){
         }
       }else if(val){
         store({v,i:0,key:v.id+":0"},val);const shown=fmtVal(d.type,v.values[0]);
-        if(it.init.k==="lit")parts.push(`宣告 ${T} ${N}（${B_(sz)}），放進 ${shown}。`);
+        if(it.init.k==="lit")parts.push(Tx(`宣告 ${T} ${N}（${B_(sz)}），放進 ${shown}。`,`Declare ${T} ${N} (${B_(sz)}) and put ${shown} in it.`));
         else{const raw=fmtVal(val.t,val.v);const t=txt(it.init);
-          parts.push(`宣告 ${T} ${N}：先算 <code>${esc(t)}</code> → ${pre&&pre!==t?esc(pre)+" = ":""}${raw}${raw!==shown?`，存成 ${T} 變成 ${shown}`:""}，放進 ${esc(it.name)}。`)}
+          parts.push(Tx(`宣告 ${T} ${N}：先算 <code>${esc(t)}</code> → ${pre&&pre!==t?esc(pre)+" = ":""}${raw}${raw!==shown?`，存成 ${T} 變成 ${shown}`:""}，放進 ${esc(it.name)}。`,
+            `Declare ${T} ${N}: first compute <code>${esc(t)}</code> → ${pre&&pre!==t?esc(pre)+" = ":""}${raw}${raw!==shown?`; stored as ${T}, it becomes ${shown}`:""}, then put it in ${esc(it.name)}.`))}
       }else if(d.type==="priority_queue"){
         S.changed.add(v.id+":0");
         parts.push(`宣告 <code>priority_queue&lt;${(d.elem==="struct"&&d.esdef?esc(d.esdef.name):TNAME[d.elem])}&gt;</code> ${N}${d.elem2==="min"?"（由小到大）":""}：一個空的優先佇列。push 進去的東西會自動排好，top() 永遠是<b>最${d.elem2==="min"?"小":"大"}</b>的那一個，pop() 就把它拿走。`);
@@ -1280,7 +1284,8 @@ function run(prog,src,input){
         parts.push(`宣告 <code>stack&lt;${(d.elem==="struct"&&d.esdef?esc(d.esdef.name):TNAME[d.elem])}&gt;</code> ${N}：一個空的 stack，裡面還沒有東西。之後用 push 放進去、pop 拿出來，<b>只能動最上面那一個</b>。`);
       }else{
         S.changed.add(v.id+":0");
-        parts.push(`宣告 ${T} ${N}：向記憶體借 ${B_(sz)} 的空間。`+(global?"全域變數自動設成 0。":"沒有給初始值 → 裡面是<b>垃圾值</b>。"));
+        parts.push(Tx(`宣告 ${T} ${N}：向記憶體借 ${B_(sz)} 的空間。`+(global?"全域變數自動設成 0。":"沒有給初始值 → 裡面是<b>垃圾值</b>。"),
+          `Declare ${T} ${N}: get ${B_(sz)} of memory. `+(global?"Global variables start at 0.":"No starting value → it holds a <b>garbage value</b>.")));
       }
     }
     snap(d,parts.join("<br>"));
@@ -1292,8 +1297,8 @@ function run(prog,src,input){
       case"block":{
         S.scopes.push(new Map());
         try{for(const s of st.body)exec(s)}
-        catch(e){if(e===BRK||e===CNT)popScope({s:st.close,e:st.close+1},n=>`離開大括號，${n} 的空間被收回。`);else S.scopes.pop();throw e}
-        popScope({s:st.close,e:st.close+1},n=>`離開大括號，${n} 的空間被收回，之後就不能再用了。`);return;
+        catch(e){if(e===BRK||e===CNT)popScope({s:st.close,e:st.close+1},n=>Tx(`離開大括號，${n} 的空間被收回。`,`Leave the braces. The space of ${n} is freed.`));else S.scopes.pop();throw e}
+        popScope({s:st.close,e:st.close+1},n=>Tx(`離開大括號，${n} 的空間被收回，之後就不能再用了。`,`Leave the braces. The space of ${n} is freed, and it cannot be used anymore.`));return;
       }
       case"empty":return;
       case"decl":execDecl(st,false);return;
@@ -1320,7 +1325,7 @@ function run(prog,src,input){
             if(st.upd)execExpr(st.upd,"更新：");
           }
         }catch(e){S.scopes.pop();throw e}
-        popScope({s:st.s,e:st.e},n=>`for 迴圈結束，${n} 的空間被收回（它只活在這個 for 迴圈裡）。`);return;
+        popScope({s:st.s,e:st.e},n=>Tx(`for 迴圈結束，${n} 的空間被收回（它只活在這個 for 迴圈裡）。`,`The for loop ends. The space of ${n} is freed (it only lives in this for loop).`));return;
       }
       case"delete":{
         const pv=ev(st.x),T=`<code>${esc(txt(st.x))}</code>`;
@@ -1364,7 +1369,7 @@ function run(prog,src,input){
       case"continue":snap(st,"<code>continue</code>：這一輪剩下的不做了，直接進入下一輪（for 迴圈會先做「更新」）。");throw CNT;
       case"return":
         if(S.frames.length>1){const val=st.x?ev(st.x):null;throw{fret:true,val:val||{t:"void",v:0},node:st}}
-        if(st.x)ev(st.x);leakNote();snap(st,"<code>return 0</code>：main 結束，程式結束。");throw RET;
+        if(st.x)ev(st.x);leakNote();snap(st,Tx("<code>return 0</code>：main 結束，程式結束。","<code>return 0</code>: main ends, and the program stops."));throw RET;
     }
   }
   try{
@@ -1372,12 +1377,12 @@ function run(prog,src,input){
     for(const g of prog.globals)execDecl(g,true);
     S.scopes.push(new Map());
     for(const s of prog.main.body)exec(s);
-    leakNote();snap({s:prog.main.close,e:prog.main.close+1},"main 執行到最後，程式結束。");
+    leakNote();snap({s:prog.main.close,e:prog.main.close+1},Tx("main 執行到最後，程式結束。","main reaches the end, and the program stops."));
     trace[trace.length-1].done=true;
   }catch(e){
     if(e===RET)trace[trace.length-1].done=true;
     else if(e&&e.rt){S.notes=[];snap(e.node,`<div class="err">💥 ${e.msg}</div>`,{error:true,done:true,oob:e.oob||null},true)}
-    else if(e===LIM)snap({s:0,e:0},`<div class="err">已經執行超過 ${LIMIT} 步，先停下來了。很可能是<b>無窮迴圈</b>：檢查迴圈的條件有沒有機會變成 false。</div>`,{error:true,done:true,line:0},true);
+    else if(e===LIM)snap({s:0,e:0},Tx(`<div class="err">已經執行超過 ${LIMIT} 步，先停下來了。很可能是<b>無窮迴圈</b>：檢查迴圈的條件有沒有機會變成 false。</div>`,`<div class="err">It ran more than ${LIMIT} steps, so it stopped. It is probably an <b>infinite loop</b>: check if the loop condition can ever become false.</div>`),{error:true,done:true,line:0},true);
     else if(e&&e.fret)snap(e.node,`<div class="err">return 寫在不該寫的地方。</div>`,{error:true,done:true},true);
     else if(e===BRK||e===CNT)snap({s:0,e:0},`<div class="err">break / continue 只能用在迴圈裡面。</div>`,{error:true,done:true},true);
     else throw e;

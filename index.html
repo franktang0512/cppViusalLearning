@@ -11,21 +11,26 @@
 </head>
 <body>
 <div class="app">
-  <nav id="nav" aria-label="課程目錄"></nav>
+  <nav id="nav" aria-label="課程目錄" data-en-label="Lessons"></nav>
   <button class="nav-toggle" id="navToggle" aria-controls="nav" aria-expanded="true" title="收合目錄"></button>
   <main>
     <div class="modebar">
+      <!-- 流程圖模式先暫停（js/ui.js 的「模式切換」也一起註解掉了）
       <div class="modes" role="group" aria-label="切換模式">
       <button class="mode-btn" id="modeCpp" aria-pressed="true">C++</button>
-      <button class="mode-btn" id="modeFlow" aria-pressed="false">流程圖</button>
+      <button class="mode-btn" id="modeFlow" aria-pressed="false" data-en="Flowchart">流程圖</button>
       </div>
+      -->
+      <button class="mode-btn lang-btn" id="langBtn" title="切換成英文" data-en-title="Switch to Chinese">EN</button>
     </div>
+    <!-- 流程圖模式先暫停
     <div id="flowView" class="flow-view" hidden>
-      <div class="flow-bar"><span class="hint">流程圖模式（目前嵌入原本的流程圖網站）</span><a class="small-btn" id="flowOpen" href="https://franktang0512.github.io/flowchart/" target="_blank" rel="noopener">在新分頁開啟</a></div>
+      <div class="flow-bar"><span class="hint" data-en="Flowchart mode (shows the flowchart website)">流程圖模式（目前嵌入原本的流程圖網站）</span><a class="small-btn" id="flowOpen" href="https://franktang0512.github.io/flowchart/" target="_blank" rel="noopener" data-en="Open in a new tab">在新分頁開啟</a></div>
       <iframe id="flowFrame" title="流程圖編輯器"></iframe>
     </div>
+    -->
     <div class="wrap" id="cppView">
-      <div class="topbar"><button class="btn" id="menu">☰ 目錄</button></div>
+      <div class="topbar"><button class="btn" id="menu" data-en="☰ Lessons">☰ 目錄</button></div>
       <div class="lesson-head">
         <div>
           <div class="crumb" id="crumb"></div>
@@ -35,21 +40,21 @@
           <div id="task"></div>
           <div class="tags" id="tags"></div>
         </div>
-        <div class="lnav"><button class="btn" id="prevL">← 上一課</button><button class="btn" id="nextL">下一課 →</button></div>
+        <div class="lnav"><button class="btn" id="prevL" data-en="← Previous">← 上一課</button><button class="btn" id="nextL" data-en="Next lesson →">下一課 →</button></div>
       </div>
 
       <div class="grid">
         <section class="panel">
-          <div class="ph"><h2>程式碼</h2><span class="sp"></span><button class="small-btn" id="editBtn">改改看</button></div>
+          <div class="ph"><h2 data-en="Code">程式碼</h2><span class="sp"></span><button class="small-btn" id="editBtn" data-en="Edit">改改看</button></div>
           <div id="codeArea"></div>
           <div class="controls" id="ctl">
-            <button class="btn" id="reset">重來</button>
-            <button class="btn" id="prev" title="鍵盤 ← 也可以">上一步</button>
-            <button class="btn primary" id="next" title="鍵盤 → 也可以">下一步</button>
+            <button class="btn" id="reset" data-en="Reset">重來</button>
+            <button class="btn" id="prev" title="鍵盤 ← 也可以" data-en-title="You can also press ←" data-en="Back">上一步</button>
+            <button class="btn primary" id="next" title="鍵盤 → 也可以" data-en-title="You can also press →" data-en="Next">下一步</button>
             <button class="btn" id="play">▶ 自動</button>
-            <button class="btn" id="end">到最後</button>
+            <button class="btn" id="end" data-en="To end">到最後</button>
           </div>
-          <div class="scrubrow"><input type="range" class="scrub" id="scrub" min="0" value="0" aria-label="拖曳到任一步"><span class="count" id="count"></span></div>
+          <div class="scrubrow"><input type="range" class="scrub" id="scrub" min="0" value="0" aria-label="拖曳到任一步" data-en-label="Drag to any step"><span class="count" id="count"></span></div>
           
           <div class="note" id="note"></div>
           
@@ -57,25 +62,26 @@
 
         <div class="right">
           <section class="panel">
-            <div class="ph"><h2 id="memTitle">記憶體</h2><span class="sp"></span>
-              <button class="small-btn" id="tabMem" aria-pressed="true">記憶體</button>
-              <button class="small-btn" id="tabTT" aria-pressed="false">追蹤表</button></div>
+            <div class="ph"><h2 id="memTitle" data-en="Memory">記憶體</h2><span class="sp"></span>
+              <button class="small-btn" id="tabMem" aria-pressed="true" data-en="Memory">記憶體</button>
+              <button class="small-btn" id="tabTT" aria-pressed="false" data-en="Trace table">追蹤表</button></div>
             <div id="memView"><div class="mem" id="mem"></div>
               <div class="legend" id="memLegend"></div></div>
             <div id="ttView" hidden><div class="tt-wrap" id="tt"></div>
-              <div class="legend">黃底＝那一步改變的值。</div></div>
+              <div class="legend" data-en="Yellow = the value changed in that step.">黃底＝那一步改變的值。</div></div>
           </section>
           <section class="panel io-grid">
-            <div><div class="ph"><h2>輸入（鍵盤打的）</h2></div><div id="inwrap"></div></div>
-            <div><div class="ph"><h2>輸出（螢幕上）</h2><span class="sp"></span><button class="small-btn" id="wsBtn" aria-pressed="false">顯示空白</button></div><pre class="console" id="console"></pre></div>
+            <div><div class="ph"><h2 data-en="Input (keyboard)">輸入（鍵盤打的）</h2></div><div id="inwrap"></div></div>
+            <div><div class="ph"><h2 data-en="Output (screen)">輸出（螢幕上）</h2><span class="sp"></span><button class="small-btn" id="wsBtn" aria-pressed="false" data-en="Show spaces">顯示空白</button></div><pre class="console" id="console"></pre></div>
           </section>
           <section class="panel" id="judge" hidden></section>
         </div>
       </div>
-      <footer>教學用簡化模型：只支援 C++ 的一部分語法（int、long long、double、char、bool、string、陣列、if、while、for、cin、cout）。真實電腦的位址與垃圾值每次執行都可能不同。</footer>
+      <footer data-en="A simple model for teaching: it supports only part of C++ (int, long long, double, char, bool, string, arrays, if, while, for, cin, cout). Real addresses and garbage values change every time a program runs.">教學用簡化模型：只支援 C++ 的一部分語法（int、long long、double、char、bool、string、陣列、if、while、for、cin、cout）。真實電腦的位址與垃圾值每次執行都可能不同。</footer>
     </div>
   </main>
 </div>
+<script src="js/i18n.js"></script>
 <script src="js/interpreter.js"></script>
 <script src="js/lessons/_base.js"></script>
 <script src="js/lessons/ch00-intro.js"></script>
@@ -102,6 +108,7 @@
 <script src="js/lessons/ch21-shortest.js"></script>
 <script src="js/lessons/problems-114.js"></script>
 <script src="js/lessons/upcoming.js"></script>
+<script src="js/lessons/en/ch00-02.js"></script>
 <script src="js/graph.js"></script>
 <script src="js/dctree.js"></script>
 <script src="js/ui.js"></script>
