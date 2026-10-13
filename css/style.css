@@ -427,3 +427,6 @@ svg.graph{display:block;width:100%;max-width:440px;height:auto;margin:2px auto 0
 .gl.stk{border:2px dashed var(--gcur)}.gl.inq{border:2px dashed var(--accent)}.gl.vis{background:var(--accent);border-color:var(--accent)}
 .gl.tre{border-radius:2px;height:4px;border:none;background:var(--accent);vertical-align:3px}
 @media (prefers-reduced-motion: reduce){.graph .gn.pop circle{animation:none}}
+.graph .gw{text-anchor:middle;font-family:var(--mono);font-size:12px;font-weight:700;fill:var(--muted);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.graph .gw.ghost{opacity:.5}
+.graph .gw.check{fill:var(--gcur)}

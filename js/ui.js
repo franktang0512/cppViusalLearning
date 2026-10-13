@@ -259,6 +259,7 @@ function renderMem(s,flash){
     return`<div class="hnode" data-sk="${v.id}:0"><div class="hhead"><span class="nm">${esc(v.name)}</span> <span class="addr">0x${v.addr.toString(16)}</span></div><div class="sbox"><div class="cell last"><div class="cv${fl}${r}${v.init[0]?"":" g"}" data-k="${key}">${esc(fmtVal(v.type,v.values[0]))}</div><div class="ci">${TNAME[v.type]}</div></div></div></div>`;
   }
   // 容器裡的一格：如果放的是指向 struct 的指標，顯示成「→ 它第一個欄位的值」
+  const elN=(e,v)=>e==="struct"&&v.esdef?esc(v.esdef.name):TNAME[e];  // 容器裡放的型別名稱（struct / pair 寫出名字）
   const cellTxt=(t,x)=>{if(t==="ptr"){if(x===null)return"nullptr";const o=x&&all.find(q=>q.id===x.id);return o&&o.sdef?"→"+fmtVal(o.sdef.fields[0].type,o.values[0]):fmtVal("ptr",x)}return fmtVal(t,x)};
   // 樹狀圖：每個節點是 struct、有兩個指標欄位（左、右）時，畫成一層一層的樹
   function treeHTML(hs){
@@ -322,7 +323,7 @@ function renderMem(s,flash){
         const markAt=i=>mk.filter(n=>byName[n]&&byName[n].values[0]===i).join(",");
         const cellHtml=(x,key,i,last,lab)=>{const fl=flash&&(all0||ch.has(key))?" flash":"",r=rd0||rd.has(key)?" rd":"";
           return`<div class="cell${last?" last":""}"><div class="cv${fl}${r}">${esc(fmtVal(v.elem==="vector"?v.elem2:v.elem,x))}</div><div class="ci">${lab}</div><div class="mk">${i===null?"":markAt(i)}</div></div>`};
-        const tn=v.elem==="vector"?`vector&lt;${TNAME[v.elem2]}&gt;`:TNAME[v.elem];
+        const tn=v.elem==="vector"?`vector&lt;${elN(v.elem2,v)}&gt;`:elN(v.elem,v);
         let body;
         if(v.elem==="vector"){
           // 二維 vector：一列畫一行，每一列可以不一樣長
@@ -343,7 +344,7 @@ function renderMem(s,flash){
         let cells=a.map((x,i)=>{const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
           return`<div class="cell${i===a.length-1?" last":""}"><div class="cv${fl}${r}">${esc(cellTxt(v.elem,x))}</div><div class="ci">&nbsp;</div><div class="mk">${i===0?"top":""}</div></div>`}).join("");
         if(!a.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">priority_queue&lt;${TNAME[v.elem]}&gt;・${a.length} 個・最${mn?"小":"大"}的在最前面</span></div></div><div class="arr">${cells}</div></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">priority_queue&lt;${elN(v.elem,v)}&gt;・${a.length} 個・最${mn?"小":"大"}的在最前面</span></div></div><div class="arr">${cells}</div></div>`;
         continue;
       }
       if(v.type==="queue"&&!v.isArr){
@@ -352,7 +353,7 @@ function renderMem(s,flash){
           const lb=[i===0?"front":"",i===a.length-1?"back":""].filter(Boolean).join(" / ");
           return`<div class="cell${i===a.length-1?" last":""}"><div class="cv${fl}${r}">${esc(cellTxt(v.elem,x))}</div><div class="ci">&nbsp;</div><div class="mk">${lb}</div></div>`}).join("");
         if(!a.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">queue&lt;${TNAME[v.elem]}&gt;・${a.length} 個・← 從左邊出去，從右邊進來 ←</span></div></div><div class="arr">${cells}</div></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">queue&lt;${elN(v.elem,v)}&gt;・${a.length} 個・← 從左邊出去，從右邊進來 ←</span></div></div><div class="arr">${cells}</div></div>`;
         continue;
       }
       if(v.type==="stack"&&!v.isArr){
@@ -362,7 +363,7 @@ function renderMem(s,flash){
         for(let i=a.length-1;i>=0;i--){const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
           cells+=`<div class="srow"><span class="stag">${i===a.length-1?"top →":""}</span><div class="cv${fl}${r}">${esc(cellTxt(v.elem,a[i]))}</div><span class="stag">${i===0&&a.length>1?"← 底":""}</span></div>`}
         if(!a.length)cells=`<div class="srow"><span class="stag"></span><div class="cv empty${flash&&all0?" flash":""}">空的</div><span class="stag"></span></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">stack&lt;${TNAME[v.elem]}&gt;・${a.length} 個</span></div></div><div class="vstack">${cells}<div class="sbase"></div></div></div>`;
+        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">stack&lt;${elN(v.elem,v)}&gt;・${a.length} 個</span></div></div><div class="vstack">${cells}<div class="sbase"></div></div></div>`;
         continue;
       }
       if(v.type==="string"&&!v.isArr){
