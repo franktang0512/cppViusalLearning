@@ -29,5 +29,15 @@ CHAPTERS.push({part:"基礎程式設計",id:2,title:"變數與型別",lessons:[
  {id:"2-7",title:"變數的作用域",isNew:"大括號決定變數活多久",
   goal:"在大括號 { } 裡宣告的變數，離開大括號就會被收回。",
   code:M("int x = 1;","{","    int y = 2;","    x = x + y;","}","cout << x << endl;"),input:null,
-  ask:"如果在最後一行改成 cout << y; 會發生什麼事？"}
+  ask:"如果在最後一行改成 cout << y; 會發生什麼事？"},
+ {id:"2-8",title:"浮點數的誤差：小數不能直接用 == 比",isNew:"0.1 + 0.2 不等於 0.3；比較要看「差得夠不夠小」",uses:"2-1、1-6 的 setprecision",
+  goal:"電腦用二進位存小數，0.1、0.2 這種數沒辦法存得剛剛好，只能存一個非常接近的值。所以 0.1 + 0.2 算出來，其實是 0.30000000000000004。\n平常印出來看不出來（cout 只印 6 位），可是用 == 比就會不相等。比較兩個小數，要看它們「差得夠不夠小」：fabs(a - b) < 1e-9（fabs 是取絕對值，1e-9 是 0.000000001），要 #include <cmath>。\n小數轉成整數也要小心：0.29 × 100 其實是 28.999……，轉成 int 會直接把小數丟掉，變成 28。",
+  code:M("double a = 0.1 + 0.2;  // 數學上剛好是 0.3","double b = 0.3;        // 真的 0.3","int c;                 // 0.29 × 100 轉成整數","","cout << a << endl;","cout << setprecision(17) << a << endl;","cout << (a == b) << endl;","cout << (fabs(a - b) < 1e-9) << endl;","c = 0.29 * 100;","cout << c << endl;").replace("#include <iostream>","#include <iostream>\n#include <iomanip>\n#include <cmath>"),input:null,
+  predict:"a == b 會印出 1 還是 0？c 是 29 嗎？",
+  ask:"要讓 c 變成 29，可以怎麼改？（提示：先加一個很小的數，或用 round）"},
+ {id:"2-9",title:"答案太大要開 long long",isNew:"int 大約只到 21 億；1LL * a * b 先變成 long long 再乘",uses:"2-5 的溢位",
+  goal:"int 最大大約是 21 億（2 × 10⁹），long long 大約到 9 × 10¹⁸。題目的答案可能超過 21 億時（例如很多數加起來、兩個大數相乘），就要用 long long。\n常見的陷阱：long long c = a * b; 就算 c 是 long long，a 和 b 都是 int，右邊會先用 int 算 a * b，算的時候就已經溢位了，存進 c 也救不回來。\n要寫 1LL * a * b：1LL 是 long long 的 1，乘起來就會先變成 long long，再乘 b 就不會溢位。",
+  code:M("int a = 100000, b = 100000;  // 各 10 萬","long long c = a * b;         // int × int：先用 int 算，已經溢位了","long long d = 1LL * a * b;   // 先變成 long long 再乘","","cout << c << endl;","cout << d << endl;"),input:null,
+  predict:"10 萬 × 10 萬是 100 億。c 和 d 各會印出多少？",
+  ask:"把 a、b 都宣告成 long long，c 還會溢位嗎？如果題目說「n ≤ 10⁵，輸出所有數的總和，每個數 ≤ 10⁹」，總和要用什麼型別？"}
 ]});

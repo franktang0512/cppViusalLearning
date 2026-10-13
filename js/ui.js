@@ -198,7 +198,7 @@ function render(flash){
   const legend=!ST.error&&k>=1&&k<=2?`<div class="hint" style="margin-bottom:4px">黃色＝剛剛執行的那一行，底線＝那一行裡正在執行的部分，▸＝下一步。</div>`:"";
   const ask=(k===0&&L.predict&&!ST.error)?`<div class="ask"><b>先猜猜看：</b>${esc(L.predict)}</div>`:(s&&s.done&&L.ask)?`<div class="ask"><b>想一想：</b>${esc(L.ask)}</div>`:"";
   $("note").innerHTML=legend+note+ask;
-  renderMem(s,flash);renderTT();renderIO(s,flash);renderJudge(s);renderGraph(L,s);
+  renderMem(s,flash);renderTT();renderIO(s,flash);renderJudge(s);renderGraph(L,s);renderDC(L,s);
 }
 
 function memLegend(s){
@@ -418,6 +418,15 @@ function renderMem(s,flash){
   // 有樹狀圖的時候，捲到樹那裡（指標變數的名字已經標在節點上面了）
   const tr=box.querySelector(".htree");
   if(tr&&box.scrollHeight>box.clientHeight)box.scrollTop=Math.max(0,tr.offsetTop-box.offsetTop-44);
+  // 二維表格很大的時候（例如 DP 表格），這一步改到或讀到的格子跑出畫面，就捲過去
+  const gc=!tr&&!(cur&&!arrParam)&&(box.querySelector("table.grid2 td.flash")||box.querySelector("table.grid2 td.rd"));
+  if(gc){
+    const B=box.getBoundingClientRect(),G=gc.getBoundingClientRect(),y=G.top-B.top+box.scrollTop;
+    if(box.scrollHeight>box.clientHeight&&(y<box.scrollTop+30||y+G.height>box.scrollTop+box.clientHeight-10))box.scrollTop=Math.max(0,y-box.clientHeight/2);
+    let w=gc.closest("table").parentElement;while(w&&w!==box&&w.scrollWidth<=w.clientWidth)w=w.parentElement;
+    if(w&&w!==box){const W=w.getBoundingClientRect(),x=gc.getBoundingClientRect().left-W.left+w.scrollLeft;
+      if(x<w.scrollLeft+40||x+G.width>w.scrollLeft+w.clientWidth-10)w.scrollLeft=Math.max(0,x-w.clientWidth/2)}
+  }
 }
 
 // 指標箭頭：從存位址的格子，畫到它指向的格子（或整個 struct）

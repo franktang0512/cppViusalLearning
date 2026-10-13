@@ -24,5 +24,10 @@ CHAPTERS.push({part:"基礎程式設計",id:1,title:"輸入與輸出",lessons:[
   goal:"如果要讀整數卻遇到字母，cin 會失敗，而且之後所有的 cin 都不會再讀任何東西。\n沒有被放進資料的變數，裡面是記憶體原本留下來的亂七八糟的數字，叫做「垃圾值」（第 2-3 課會細講）。",
   code:M("int a, b, c;","cin >> a >> b >> c;",'cout << a << " " << b << " " << c << endl;'),input:"7 abc 5",
   predict:"輸入 7 abc 5，a、b、c 會是多少？",
-  ask:"c 為什麼不是 5？要怎麼改宣告，才不會印出垃圾值？"}
+  ask:"c 為什麼不是 5？要怎麼改宣告，才不會印出垃圾值？"},
+ {id:"1-6",title:"小數要印幾位：fixed 和 setprecision",isNew:"cout << fixed << setprecision(2)：固定印到小數點後 2 位",uses:"1-1",
+  goal:"OJ 的題目常常寫「印到小數點後第 2 位」。cout 平常印小數只印 6 位「有效數字」，而且後面的 0 會被省略，跟題目要的不一樣就會 WA。\n要固定印到小數點後幾位，寫 cout << fixed << setprecision(2)：fixed 代表「固定小數點後幾位」，setprecision(2) 代表 2 位，會四捨五入，不夠的補 0。要先 #include <iomanip>。\n注意：這個設定寫一次就會一直有效，後面印的小數都會照這個格式。",
+  code:M("double a = 10.0 / 3;  // 3.3333……一直下去","double b = 7;         // 剛好是整數的小數","","cout << a << endl;","cout << fixed << setprecision(2) << a << endl;","cout << b << endl;","cout << setprecision(4) << a << endl;").replace("#include <iostream>","#include <iostream>\n#include <iomanip>"),input:null,
+  predict:"第一行和第二行各會印出什麼？b 是 7，第三行會印 7 嗎？",
+  ask:"把第二行的 fixed 拿掉，只留 setprecision(2)，會印出什麼？（提示：沒有 fixed 時，2 是「有效位數」）"}
 ]});

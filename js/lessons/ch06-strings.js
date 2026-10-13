@@ -36,5 +36,15 @@ CHAPTERS.push({part:"進階程式設計",id:6,title:"字串",lessons:[
   goal:"cin >> 讀到空白或換行就停，而且「不會」把後面的換行拿走。getline 會讀一整行（空白也算），讀到換行為止。所以 cin >> 後面直接接 getline，getline 會先撞到上一行留下的換行，讀到一個空字串。",
   code:MS("int age;      // 年齡（第一行）","string name;  // 全名，中間有空白（第二行）","","cin >> age;","getline(cin, name);","cout << \"age = \" << age << endl;","cout << \"name = [\" << name << \"]\" << endl;"),input:"15\nLin Sinyi",
   predict:"name 會讀到 Lin Sinyi 嗎？",
-  ask:"在 getline 前面加一行 cin.ignore(); 再執行一次。這一行把什麼丟掉了？"}
+  ask:"在 getline 前面加一行 cin.ignore(); 再執行一次。這一行把什麼丟掉了？"},
+ {id:"6-8",title:"常用字串函式：substr、find",isNew:"s.find(\"x\") 找位置；s.substr(開始, 長度) 切一段；找不到是 string::npos",uses:"6-5、6-6",
+  goal:"字串題常常要「找某個字在哪裡」和「切出其中一段」：\ns.find(t)：t 第一次出現在第幾個位置。找不到的時候回傳 string::npos，所以判斷有沒有找到要寫 s.find(t) == string::npos。\ns.substr(開始位置, 長度)：從開始位置拿幾個字；長度不寫，就一直拿到最後。\n這支程式用逗號的位置，把 \"apple,banana\" 切成前後兩段。",
+  code:M("string s = \"apple,banana\";  // 用逗號隔開的兩個字","int p;                       // 逗號在第幾個位置","","p = s.find(\",\");","cout << p << endl;","cout << s.substr(0, p) << endl;","cout << s.substr(p + 1) << endl;","if (s.find(\"cherry\") == string::npos) {","    cout << \"沒有 cherry\" << endl;","}").replace("#include <iostream>","#include <iostream>\n#include <string>"),input:null,
+  predict:"逗號在第幾個位置？s.substr(0, p) 會拿幾個字？",
+  ask:"如果 s 裡有兩個逗號（\"a,b,c\"），s.find(\",\") 會找到哪一個？要找第二個逗號，可以怎麼寫？（提示：find 的第二個參數是從哪裡開始找）\n另外，找不到的判斷也可以寫成 s.find(\"cherry\") == -1，結果一樣，但編譯器可能會給警告，所以一般還是寫 string::npos。"},
+ {id:"6-9",title:"字串和數字互換：to_string、stoi",isNew:"stoi(s)：字串變數字；to_string(n)：數字變字串",uses:"6-5、6-8",
+  goal:"\"2026\" 是字串，不能直接加 1；2026 是數字，不能用 s[i] 一位一位拿。需要的時候可以互相轉換：\nstoi(s)：把字串變成 int（stoll 變成 long long）。to_string(n)：把數字變成字串。\n轉成字串以後，就能用 length() 算有幾位數、用 s[i] 拿某一位，有些題目這樣寫比用 % 10、/ 10 簡單。",
+  code:M("string s = \"2026\";  // 字串","int n;              // 變成數字以後","string t;           // 數字再變回字串","","n = stoi(s);","cout << n + 1 << endl;","t = to_string(n * 3);","cout << t << \" 有 \" << t.length() << \" 位數\" << endl;","cout << s + \"年\" << endl;").replace("#include <iostream>","#include <iostream>\n#include <string>"),input:null,
+  predict:"n + 1 會印出什麼？t 是什麼？有幾位數？",
+  ask:"s + \"年\" 和 n + 1 的 + 意思一樣嗎？如果寫 s + 1 會怎樣？把 s 改成 \"20x6\"，stoi 會得到多少？"}
 ]});

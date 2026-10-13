@@ -430,3 +430,18 @@ svg.graph{display:block;width:100%;max-width:440px;height:auto;margin:2px auto 0
 .graph .gw{text-anchor:middle;font-family:var(--mono);font-size:12px;font-weight:700;fill:var(--muted);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
 .graph .gw.ghost{opacity:.5}
 .graph .gw.check{fill:var(--gcur)}
+/* 分而治之的拆解圖 */
+.graph.dc .seg rect.cell{fill:var(--panel);stroke:var(--ink);stroke-width:1.2}
+.graph.dc .seg text{font-family:var(--mono);font-size:12.5px;font-weight:700;text-anchor:middle;fill:var(--ink)}
+.graph.dc .seg rect.box{fill:none;stroke:none}
+.graph.dc .seg.pend rect.cell{stroke-dasharray:3 3;opacity:.45}
+.graph.dc .seg.pend text{opacity:.3}
+.graph.dc .seg.done rect.cell{fill:var(--accent);fill-opacity:.16}
+.graph.dc .seg.wait rect.box{stroke:var(--gcur);stroke-width:2;stroke-dasharray:4 2}
+.graph.dc .seg.cur rect.box{stroke:var(--gcur);stroke-width:3.5}
+.graph.dc .seg rect.cell.chg{fill:#fcc419;fill-opacity:.75}
+.graph.dc line.dl{stroke:var(--muted);stroke-width:1.5}
+.graph.dc line.dl.pend{stroke-dasharray:3 3;opacity:.35}
+.graph.dc .seg text.rv{font-size:11px;fill:var(--accent);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.graph.dc text.di{font-family:var(--mono);font-size:10px;text-anchor:middle;fill:var(--muted)}
+.dclegend{min-height:3.4em}

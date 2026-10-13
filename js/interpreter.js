@@ -6,7 +6,7 @@ const LIMIT=3000;
 const BRK={brk:1},CNT={cnt:1},RET={ret:1},LIM={lim:1};
 const KW=new Set(["int","long","double","float","char","bool","string","stack","queue","deque","vector","list","priority_queue","void","if","else","while","for","break","continue","return","true","false","const","using","namespace","unsigned","struct","new","delete"]);
 const CONTS=["stack","queue","deque","vector","list","priority_queue"];
-const MATH={abs:1,max:2,min:2,round:1,floor:1,ceil:1,sqrt:1,pow:2,strlen:1};
+const MATH={abs:1,fabs:1,max:2,min:2,round:1,floor:1,ceil:1,sqrt:1,pow:2,strlen:1};
 // pair<A, B>：當成一個有 first、second 兩個欄位的 struct（同一種 pair 共用同一份定義）
 const PAIRS={};
 function pairDef(a,b){const k=a+","+b;if(PAIRS[k])return PAIRS[k];
@@ -31,11 +31,13 @@ function fmtVal(t,v){
   if(t==="double"){if(!isFinite(v))return String(v);if(Number.isInteger(v)&&Math.abs(v)<1e15)return v.toFixed(1);if(v!==0&&Math.abs(v)<1e-4)return v.toExponential(2);return String(+v.toPrecision(10))}
   return String(v);
 }
-function fmtDouble(x){
+// p：有效位數（cout 預設 6 位，setprecision 可以改）
+function fmtDouble(x,p=6){
   if(isNaN(x))return"nan";if(!isFinite(x))return x>0?"inf":"-inf";if(x===0)return"0";
+  p=Math.min(Math.max(p,1),100);
   const e=Math.floor(Math.log10(Math.abs(x)));
-  if(e<-4||e>=6){let[m,ex]=x.toExponential(5).split("e");m=String(+m);const n=parseInt(ex,10);return m+"e"+(n<0?"-":"+")+String(Math.abs(n)).padStart(2,"0")}
-  return String(+x.toPrecision(6));
+  if(e<-4||e>=p){let[m,ex]=x.toExponential(p-1).split("e");m=String(+m);const n=parseInt(ex,10);return m+"e"+(n<0?"-":"+")+String(Math.abs(n)).padStart(2,"0")}
+  return String(+x.toPrecision(p));
 }
 function fmtOut(v){
   if(v.t==="ptr")return v.v===null?"0":"0x"+v.v.addr.toString(16);
@@ -67,7 +69,7 @@ function tokenize(src){
     if(c==="'"){i++;let v;if(src[i]==="\\"){v=unesc(src[i+1]);i+=2}else v=src[i++];
       if(src[i]!=="'")throw cerr(st,"字元要用單引號包住「一個」字，例如 'A'；好幾個字要用雙引號");i++;toks.push({t:"chr",v:(v||"\0").charCodeAt(0),s:st,e:i});continue}
     let op=ops.find(o=>src.startsWith(o,i));
-    if(!op&&"+-*/%<>=!(){}[];,&?:.".includes(c))op=c;
+    if(!op&&"+-*/%<>=!(){}[];,&|^?:.".includes(c))op=c;
     if(!op){
       if(c.charCodeAt(0)>127)throw cerr(st,`看不懂「${c}」。是不是打成全形符號了？程式碼裡的符號都要用半形。`);
       throw cerr(st,`看不懂的符號「${c}」`);
@@ -225,11 +227,18 @@ function parse(src){
       if(is(">>"))throw cerr(peek().s,"cout 要用 <<（資料流向螢幕）");
       const items=[];while(is("<<")){next();skipStd();items.push(parseAdd())}
       if(!items.length)throw cerr(t.s,"cout 後面要接 << 要印的東西");return{k:"cout",items,s:t.s,e:T[p-1].e}}
-    return parseAdd();
+    // 位元的左移、右移：1 << n、x >> i（cout、cin 開頭的已經在上面處理了）
+    let l=parseAdd();
+    while(is("<<")||is(">>")){const op=next().v;const r=parseAdd();l={k:"bin",op,l,r,s:l.s,e:r.e}}
+    return l;
   }
   const parseRel=bin(parseShift,["<","<=",">",">="]);
   const parseEq=bin(parseRel,["==","!="]);
-  const parseAnd=bin(parseEq,["&&"]);
+  // 位元運算 & ^ | 的優先順序比 == 低、比 && 高（跟 C++ 一樣）
+  const parseBitAnd=bin(parseEq,["&"]);
+  const parseBitXor=bin(parseBitAnd,["^"]);
+  const parseBitOr=bin(parseBitXor,["|"]);
+  const parseAnd=bin(parseBitOr,["&&"]);
   const parseOr=bin(parseAnd,["||"]);
   function parseUnary(){
     const t=peek();
@@ -267,6 +276,7 @@ function parse(src){
     if(is("vector")&&is("<",1)){const st=peek().s;parseType();const el=lastElem;expect("(");const args=[];if(!is(")")){do{args.push(parseAssign())}while(is(",")&&next())}const c=expect(")");
       if(CONTS.includes(el))throw cerr(st,"這個網頁還不支援這種寫法");return{k:"vnew",elem:el,args,s:st,e:c.e}}
     if(is("{"))return parseBrace();  // {a, b}：push_back({a, b}) 這種寫法
+    if(is("string")&&is("::",1)){const st=peek().s;p+=2;const m=next();if(m.v!=="npos")throw cerr(m.s,"string:: 後面這個網頁只支援 npos");return{k:"lit",val:{t:"ll",v:-1},npos:true,s:st,e:m.e}}
     const t=next();
     if(t.t==="num"){const raw=t.v.replace(/[lLuU]/g,"");const isD=/[.eE]/.test(raw);
       if(isD)return{k:"lit",val:{t:"double",v:parseFloat(raw)},s:t.s,e:t.e};
@@ -277,6 +287,8 @@ function parse(src){
     if(t.t==="id"){
       if(t.v==="endl")return{k:"endl",s:t.s,e:t.e};
       if(t.v==="nullptr"||t.v==="NULL")return{k:"lit",val:{t:"ptr",v:null},s:t.s,e:t.e};
+      if(t.v==="setprecision"&&is("(")){next();const x=parseAssign();const c=expect(")");return{k:"setprec",x,s:t.s,e:c.e}}
+      if(["to_string","stoi","stoll"].includes(t.v)&&is("(")){next();const x=parseAssign();const c=expect(")");return{k:"strfn",f:t.v,x,s:t.s,e:c.e}}
       if(t.v==="make_pair"&&is("(")){next();const args=[];if(!is(")")){do{args.push(parseAssign())}while(is(",")&&next())}const c=expect(")");return{k:"mkpair",args,s:t.s,e:c.e}}
       if(t.v==="greater"&&is("<")){next();parseType();closeAngle();expect("(");const c=expect(")");return{k:"greater",s:t.s,e:c.e}}
       if(t.v==="getline"&&is("(")){next();skipStd();const c0=next();
@@ -600,6 +612,18 @@ function run(prog,src,input){
   function ev(n){
     switch(n.k){
       case"lit":return n.val;
+      case"setprec":throw rterr(n,"setprecision( ) 要放在 cout << 後面，例如 cout << fixed << setprecision(2) << x;");
+      case"strfn":{const x=ev(n.x);
+        if(n.f==="to_string"){if(!["int","ll","double","char","bool"].includes(x.t))throw rterr(n,"to_string( ) 裡面要放數字");
+          const r=x.t==="double"?x.v.toFixed(6):String(Math.trunc(x.v));
+          note(`ℹ <code>${esc(txt(n))}</code>：把數字 ${esc(fmtVal(x.t,x.v))} 變成字串 "${esc(r)}"${x.t==="double"?"（double 會印到小數點後 6 位）":""}。`);return{t:"string",v:r}}
+        if(x.t!=="string")throw rterr(n,`${n.f}( ) 裡面要放字串`);
+        const m=x.v.match(/^\s*[+-]?\d+/);
+        if(!m)throw rterr(n,`<code>${esc(txt(n))}</code>："${esc(x.v)}" 開頭不是數字，真正的 C++ 會丟出 invalid_argument 當掉。`);
+        const v=parseInt(m[0],10);
+        if(n.f==="stoi"&&(v>2147483647||v<-2147483648))throw rterr(n,`"${esc(x.v)}" 超出 int 的範圍，真正的 C++ 會丟出 out_of_range 當掉。可以改用 stoll。`);
+        note(`ℹ <code>${esc(txt(n))}</code>：把字串 "${esc(x.v)}" 變成數字 ${v}${m[0].length<x.v.length?`（後面的「${esc(x.v.slice(m[0].length))}」不是數字，被忽略了）`:""}。`);
+        return{t:n.f==="stoi"?"int":"ll",v}}
       case"brace":throw rterr(n,"{ } 只能寫在宣告的時候給初始值，或放進 push_back( )、push( ) 的括號裡");
       case"mkpair":{
         if(n.args.length!==2)throw rterr(n,"make_pair 要放兩個值，例如 make_pair(3, 5)");
@@ -642,6 +666,13 @@ function run(prog,src,input){
         if(a.t==="struct"&&b.t==="struct"&&a.v.sdef.pair&&b.v.sdef.pair&&["<","<=",">",">=","==","!="].includes(n.op)){const c=cmpv(a.v,b.v);return B({"<":c<0,"<=":c<=0,">":c>0,">=":c>=0,"==":c===0,"!=":c!==0}[n.op])}
         if(a.t==="struct"||b.t==="struct"){const sv=a.t==="struct"?a:b,f0=sv.v.sdef.fields.find(f=>f.type!=="string")||sv.v.sdef.fields[0];
           throw rterr(n,`整個 struct 不能直接用 <code>${esc(n.op)}</code> ${["<","<=",">",">=","==","!="].includes(n.op)?"比較":"計算"}，C++ 不知道要比哪一個欄位。請指定欄位，例如 <code>a.${esc(f0.name)} ${esc(n.op)} b.${esc(f0.name)}</code>。`)}
+        if(["&","|","^","<<",">>"].includes(n.op)){
+          if(![a,b].every(q=>["int","ll","char","bool"].includes(q.t)))throw rterr(n,`<code>${esc(n.op)}</code> 是<b>位元運算</b>，只能用在整數上。`);
+          if(n.op==="<<"||n.op===">>"){if(b.v<0||b.v>=(a.t==="ll"?64:32))throw rterr(n,`位移的位數要在 0 ～ ${a.t==="ll"?63:31} 之間，這裡是 ${b.v}。`)}
+          const L=a.t==="ll"||b.t==="ll"&&n.op!=="<<"&&n.op!==">>";
+          if(L){const x=BigInt(a.v),y=BigInt(b.v),r={"&":x&y,"|":x|y,"^":x^y,"<<":x<<y,">>":x>>y}[n.op];return{t:"ll",v:Number(BigInt.asIntN(64,r))}}
+          const x=a.v|0,y=b.v|0;return{t:"int",v:{"&":x&y,"|":x|y,"^":x^y,"<<":x<<y,">>":x>>y}[n.op]}
+        }
         const num=q=>q.t==="ptr"?(q.v===null?0:q.v.addr):q.v;
         if(["<","<=",">",">=","==","!="].includes(n.op)){const x=num(a),y=num(b);return B({"<":x<y,"<=":x<=y,">":x>y,">=":x>=y,"==":x===y,"!=":x!==y}[n.op])}
         return arith(n.op,a,b,n);
@@ -673,22 +704,40 @@ function run(prog,src,input){
       }
       case"sortcall":{
         if(S.quiet)throw IMPURE;
-        if(n.args.length<2||n.args.length>3)throw rterr(n,"sort 的寫法是 sort(開頭, 結尾)，或 sort(開頭, 結尾, greater&lt;int&gt;()) 由大到小");
-        if(n.args[2]&&n.args[2].k!=="greater")throw rterr(n,"這個網頁的 sort 第三個參數目前只支援 greater&lt;int&gt;()（由大到小）");
-        const desc=!!n.args[2],A=n.args[0],Bn=n.args[1];
-        let arr,lo,hi,label,keyOf;
+        if(n.args.length<2||n.args.length>3)throw rterr(n,"sort 的寫法是 sort(開頭, 結尾)、sort(開頭, 結尾, greater&lt;int&gt;())，或 sort(開頭, 結尾, 比較函式)");
+        const C3=n.args[2],cmpF=C3&&C3.k==="var"&&prog.funcs[C3.name]?C3.name:null;
+        if(C3&&C3.k!=="greater"&&!cmpF)throw rterr(n,"sort 的第三個參數要放 greater&lt;int&gt;()，或自己寫的比較函式的名字（例如 cmp，後面不用加括號）");
+        if(cmpF){const F=prog.funcs[cmpF];if(F.params.length!==2||F.ret!=="bool")throw rterr(n,`比較函式 <code>${esc(cmpF)}</code> 要寫成 bool ${esc(cmpF)}(型別 a, 型別 b)：a 要排在 b 前面，就回傳 true。`)}
+        const desc=!!C3&&!cmpF,A=n.args[0],Bn=n.args[1];
+        let arr,lo,hi,label,keyOf,sv=null,et=null;
         if(A.k==="method"&&A.name==="begin"&&Bn.k==="method"&&Bn.name==="end"){
           if(txt(A.obj)!==txt(Bn.obj))throw rterr(n,"begin() 和 end() 要是同一個 vector");
           const cb=contOf(A.obj);if(!cb||!["vector","deque"].includes(cb.type))throw rterr(n,"sort 只能排 vector、deque 或陣列");
-          if(cb.elem==="struct"&&!cb.esdef.pair)throw rterr(n,"vector 裡放自己寫的 struct，要自己寫比較函式才能 sort，這個網頁還不支援。可以改用 pair（先比 first，一樣再比 second）");
-          arr=cb.arr;lo=0;hi=arr.length;label=cb.label;keyOf=k=>cb.key+k;
+          if(cb.elem==="struct"&&!cb.esdef.pair&&!cmpF)throw rterr(n,"vector 裡放自己寫的 struct，要寫比較函式才能 sort，例如 sort(v.begin(), v.end(), cmp)");
+          arr=cb.arr;lo=0;hi=arr.length;label=cb.label;keyOf=k=>cb.key+k;et=cb.elem;
         }else{
           const x=ev(A),y=ev(Bn);
           if(x.t!=="ptr"||y.t!=="ptr"||!x.v||!y.v||x.v.id!==y.v.id)throw rterr(n,"sort(a, a + n) 的兩個位置要在同一個陣列裡。vector 要寫 sort(v.begin(), v.end())。");
           const v=S.vars.find(q=>q.id===x.v.id);lo=x.v.i;hi=y.v.i;
-          if(v.sdef)throw rterr(n,"struct 陣列要自己寫比較函式才能 sort，這個網頁還不支援。可以自己寫泡沫排序（第 14 章），比較 a[j].欄位");
+          if(v.sdef&&!cmpF)throw rterr(n,"struct 陣列要寫比較函式才能 sort，例如 sort(a, a + n, cmp)，cmp 決定誰排前面");
+          sv=v.sdef?v:null;et=v.type;
           if(lo<0||hi>v.len||lo>hi)throw rterr(n,`排序的範圍超出 ${esc(v.name)} 了：${esc(v.name)} 只有 ${v.len} 格`);
           arr=v.values;label=v.name;keyOf=k=>v.id+":"+k;
+        }
+        if(cmpF){
+          // 用插入排序一個一個比，每次比較都真的呼叫一次 cmp（看得到 sort 怎麼用比較函式）
+          const F=sv?sv.sdef.fields.length:1,show=x=>esc(fmtVal(x.t,x.v));
+          const get=k=>sv?sval(sv.sdef,sv.values.slice(k*F,k*F+F),sv.init.slice(k*F,k*F+F)):et==="struct"?{t:"struct",v:dcopy(arr[k])}:{t:et,v:arr[k]};
+          const items=[];for(let k=lo;k<hi;k++)items.push(get(k));
+          const less=(x,y)=>{const lit=q=>({k:"lit",val:q,cmpArg:true,s:n.s,e:n.e});
+            note(`ℹ sort 想知道 <b>${show(x)}</b> 要不要排在 <b>${show(y)}</b> 前面，所以呼叫 <code>${esc(cmpF)}</code>。`);
+            return truthy(callFn({k:"ucall",f:cmpF,args:[lit(x),lit(y)],label:`${esc(cmpF)}(${show(x)}, ${show(y)})`,s:n.s,e:n.e}))};
+          for(let i=1;i<items.length;i++)for(let j=i;j>0&&less(items[j],items[j-1]);j--){const t=items[j];items[j]=items[j-1];items[j-1]=t}
+          items.forEach((x,k)=>{const at=lo+k;
+            if(sv)x.v.vals.forEach((q,f)=>{sv.values[at*F+f]=q;sv.init[at*F+f]=x.v.init[f];S.changed.add(sv.id+":"+(at*F+f))});
+            else{arr[at]=x.v;S.changed.add(keyOf(at))}});
+          S.info={kind:"msg",text:`<code>${esc(txt(n))}</code>：照 <code>${esc(cmpF)}</code> 的規則排好了。${esc(cmpF)}(a, b) 回傳 true，a 就排在 b 前面。`};
+          return{t:"void",v:0};
         }
         const part=arr.slice(lo,hi).sort(cmpv);if(desc)part.reverse();
         for(let k=lo;k<hi;k++){arr[k]=part[k-lo];S.changed.add(keyOf(k))}
@@ -720,6 +769,7 @@ function run(prog,src,input){
         if(as.length!==MATH[n.f])throw rterr(n,`${n.f} 需要 ${MATH[n.f]} 個參數`);
         if(as.some(a=>a.t==="string"))throw rterr(n,`${n.f} 不能用在字串上`);
         if(n.f==="abs")return{t:as[0].t,v:Math.abs(as[0].v)};
+        if(n.f==="fabs")return{t:"double",v:Math.abs(as[0].v)};
         if(n.f==="pow")return{t:"double",v:Math.pow(as[0].v,as[1].v)};
         if(MATH[n.f]===1)return{t:"double",v:{round:x=>Math.sign(x)*Math.round(Math.abs(x)),floor:Math.floor,ceil:Math.ceil,sqrt:Math.sqrt}[n.f](as[0].v)};
         const t=Math.max(rank(as[0].t),rank(as[1].t))===3?"double":Math.max(rank(as[0].t),rank(as[1].t))===2?"ll":as[0].t;
@@ -763,6 +813,24 @@ function run(prog,src,input){
         if(o&&o.type==="priority_queue"&&!o.isArr)return pqMethod(o,n);
         if(!o||o.type!=="string"||o.isArr)throw rterr(n,`只有 string 變數可以用 .${esc(n.name)}()`);
         if(n.name==="length"||n.name==="size"){if(!S.quiet)S.read.add(o.id+":0");return{t:"int",v:o.values[0].length}}
+        const str=o.values[0],N=esc(o.name);
+        if(n.name==="substr"){
+          if(n.args.length<1||n.args.length>2)throw rterr(n,"substr 的寫法是 s.substr(開始位置, 長度)；長度不寫，就一直拿到最後");
+          const pos=Math.trunc(ev(n.args[0]).v),len=n.args[1]?Math.trunc(ev(n.args[1]).v):str.length;
+          if(pos<0||pos>str.length)throw rterr(n,`<b>substr 越界！</b><code>${N}</code> 的長度是 ${str.length}，開始位置最多只能是 ${str.length}，這裡卻是 ${pos}。（真正的 C++ 會丟出 out_of_range 當掉）`);
+          const r=str.substr(pos,Math.max(0,len));
+          if(!S.quiet){for(let k=pos;k<pos+r.length;k++)S.read.add(o.id+":c"+k);note(`ℹ <code>${esc(txt(n))}</code>：從 ${N}[${pos}] 開始拿 ${r.length} 個字${n.args[1]&&pos+len>str.length?"（後面不夠，拿到最後為止）":""}，得到 "${esc(r)}"。`)}
+          return{t:"string",v:r};
+        }
+        if(n.name==="find"){
+          if(n.args.length<1||n.args.length>2)throw rterr(n,"find 的寫法是 s.find(要找的字串)，或 s.find(要找的字串, 從哪裡開始找)");
+          const x=ev(n.args[0]),from=n.args[1]?Math.trunc(ev(n.args[1]).v):0;
+          const t=x.t==="char"?String.fromCharCode(x.v):x.t==="string"?x.v:null;if(t===null)throw rterr(n,"find 裡面要放字串或字元");
+          const i=str.indexOf(t,Math.max(0,from));
+          if(!S.quiet){if(i>=0){for(let k=i;k<i+t.length;k++)S.read.add(o.id+":c"+k);note(`ℹ <code>${esc(txt(n))}</code>：「${esc(t)}」第一次出現在 ${N}[${i}]，回傳 ${i}。`)}
+            else note(`ℹ <code>${esc(txt(n))}</code>：找不到「${esc(t)}」，回傳 <b>string::npos</b>。判斷有沒有找到要寫 <code>== string::npos</code>。（npos 其實是一個很大的數，這個網頁用 -1 表示）`)}
+          return{t:"ll",v:i};
+        }
         throw rterr(n,`這個網頁還不支援 .${esc(n.name)}()`);
       }
       case"getline":if(S.quiet)throw IMPURE;return evGetline(n);
@@ -792,7 +860,11 @@ function run(prog,src,input){
   function subOf(n){try{return subText(n)}catch(e){return null}}
   function evCout(n){
     let s="";
-    for(const it of n.items){const ca=charArr(it);if(it.k==="endl")s+="\n";else if(it.k==="str")s+=it.v;else if(ca)s+=charArrText(ca,it);else{const x=ev(it);if(x.t==="struct")throw rterr(it,`cout 不能直接印整個 struct，要一個欄位一個欄位印，例如 cout << ${esc(txt(it))}.${esc(x.v.sdef.fields[0].name)}`);s+=fmtOut(x)}}
+    for(const it of n.items){const ca=charArr(it);if(it.k==="endl")s+="\n";else if(it.k==="str")s+=it.v;else if(ca)s+=charArrText(ca,it);
+      else if(it.k==="var"&&it.name==="fixed"){S.fixed=true;note(`ℹ <code>fixed</code>：之後印小數，都固定印到<b>小數點後 ${S.prec??6} 位</b>（setprecision 決定幾位），會四捨五入、不足補 0。這個設定會一直有效。`)}
+      else if(it.k==="setprec"){const q=Math.trunc(ev(it.x).v);if(q<0)throw rterr(it,"setprecision 的位數不能是負的");S.prec=q;
+        note(S.fixed?`ℹ <code>${esc(txt(it))}</code>：之後的小數印到<b>小數點後 ${q} 位</b>。這個設定會一直有效。`:`ℹ <code>${esc(txt(it))}</code>：還沒寫 fixed，所以 ${q} 是「<b>有效位數</b>」（從第一個不是 0 的數字開始算 ${q} 位）。要固定小數點後幾位，前面要加 <code>fixed</code>。`)}
+      else{const x=ev(it);if(x.t==="struct")throw rterr(it,`cout 不能直接印整個 struct，要一個欄位一個欄位印，例如 cout << ${esc(txt(it))}.${esc(x.v.sdef.fields[0].name)}`);s+=x.t==="double"?(S.fixed?x.v.toFixed(Math.min(S.prec??6,100)):fmtDouble(x.v,S.prec??6)):fmtOut(x)}}
     S.out+=s;S.lastCout=s;return B(1);
   }
   function evCin(n){
@@ -850,7 +922,7 @@ function run(prog,src,input){
     const bind=F.params.map((pm,i)=>{
       const a=n.args[i];
       if(!a)return{pm,val:ev(pm.def),dflt:true};
-      if(pm.ref||pm.arr){
+      if((pm.ref||pm.arr)&&!a.cmpArg){
         if(a.k!=="var")throw rterr(a,pm.arr?`參數 <code>${esc(pm.name)}</code> 是陣列，這裡要放陣列的名稱。`:`參數 <code>${esc(pm.name)}</code> 是傳參考（&amp;），這裡要放一個變數，不能放算式或數字。`);
         const v=lookup(a.name,a);
         if(pm.arr&&!v.isArr)throw rterr(a,`參數 <code>${esc(pm.name)}</code> 是陣列，但 <code>${esc(a.name)}</code> 不是陣列。`);
@@ -880,7 +952,7 @@ function run(prog,src,input){
         parts.push(`${N} = ${esc(fmtVal(sh.t,sh.v))}${v.sdef?"（整個 struct <b>複製</b>一份）":""}${b.dflt?"（沒給，用<b>預設值</b>）":""}`)}
     }
     const caller=S.frames[S.frames.length-2].label;
-    snap(n,`呼叫 <code>${esc(txt(n))}</code>：從 ${caller} 跳進 <b>${esc(n.f)}</b> 函式，記憶體多開一層。`+(parts.length?`<br>參數：${parts.join("，")}。`:""));
+    snap(n,`呼叫 <code>${n.label||esc(txt(n))}</code>：從 ${caller} 跳進 <b>${esc(n.f)}</b> 函式，記憶體多開一層。`+(parts.length?`<br>參數：${parts.join("，")}。`:""));
     let ret=null,at={s:F.body.close,e:F.body.close+1};
     try{for(const st of F.body.body)exec(st)}
     catch(e){if(e&&e.fret){ret=e.val;at=e.node}else throw e}
@@ -903,7 +975,7 @@ function run(prog,src,input){
     S.vars=S.vars.filter(v=>v.scope!==fr.key);S.refs=S.refs.filter(r=>r.frame!==fr.key);
     S.frames.pop();S.scopes=saved.scopes;S.addr=saved.addr;
     const back=out?`，把 <b>${esc(fmtVal(out.t,out.v))}</b> 帶回 ${caller} 呼叫它的地方`:`，回到 ${caller}`;
-    snap(at,`${ret!==null?`<code>${esc(txt(at))}</code>`:`${esc(n.f)} 執行到最後`}：<b>${esc(n.f)}</b> 結束${back}。`+(freed.length?`<br>${esc(n.f)} 的 ${freed.map(v=>`<code>${esc(v.name)}</code>`).join("、")} 都被收回了。`:""));
+    snap(at,`${ret!==null?`<code>${esc(txt(at))}</code>`:`${esc(n.f)} 執行到最後`}：<b>${esc(n.f)}</b> 結束${back}。`+(freed.length?`<br>${esc(n.f)} 的 ${freed.map(v=>`<code>${esc(v.name)}</code>`).join("、")} 都被收回了。`:""),{retv:{key:fr.key,v:out?fmtVal(out.t,out.v):null}});
     return out||{t:"void",v:0};
   }
   // 放進容器的一個 struct / pair：可以是一整個變數，也可以直接寫 {a, b}
