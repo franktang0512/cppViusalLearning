@@ -212,14 +212,19 @@ function memLegend(s){
   if(s.vars.some(v=>v.init.some(x=>!x)))items.push(T("灰字＝垃圾值（還沒給過值）","Gray = garbage value (no value given yet)"));
   if(s.read.length)items.push(T("藍框＝這一步讀取的格子","Blue box = read in this step"));
   if(s.vars.some(v=>v.type==="ptr"||v.sdef&&v.sdef.fields.some(f=>f.type==="ptr")))items.push(T("箭頭＝指標指向的地方","Arrow = where a pointer points"));
+  if(s.vars.some(v=>v.type==="ptr"&&!v.isArr&&v.init[0]&&v.values[0]&&fnOut(s.vars,v.id,v.values[0].id)))items.push(T("粉紅箭頭＝從函式裡指到外面的變數","Pink arrow = from inside a function to a variable outside it"));
+  if(s.vars.some(v=>v.plv>1))items.push(T("橘色箭頭＝指向另一個指標（指標的指標）","Orange arrow = points to another pointer (pointer to pointer)"));
   if(s.changed.length)items.push(T("閃黃＝這一步被改的格子","Yellow flash = changed in this step"));
   return T(items.join("。")+(items.length?"。":""),items.join(". ")+(items.length?".":""));
 }
+// 從函式裡指到外面（main、全域或別的函式）的指標：箭頭換顏色。指到 heap 的不算
+let memVars=[];
+const fnOut=(vars,sid,tid)=>{const a=vars.find(v=>v.id===sid),b=vars.find(v=>v.id===tid);return!!a&&!!b&&!["main","global","heap"].includes(a.scope)&&b.scope!==a.scope&&b.scope!=="heap"};
 function renderMem(s,flash){
   const box=$("mem");$("memLegend").textContent=s&&s.vars.length?memLegend(s):"";
   if(!s||!s.vars.length){box.innerHTML=`<div class="empty">${T("還沒有宣告任何變數","No variables yet")}</div>`;return}
   const ch=new Set(s.changed),rd=new Set(s.read);
-  const all=s.vars;const hasG=all.some(v=>v.scope==="global");
+  const all=s.vars;memVars=all;const hasG=all.some(v=>v.scope==="global");
   const byName={};all.forEach(v=>{if(!v.isArr)byName[v.name]=v});
   let h="";
   // 呼叫堆疊：全域 → main → 被呼叫的函式（最下面一層是正在執行的）
@@ -310,7 +315,7 @@ function renderMem(s,flash){
   const hasH=all.some(v=>v.scope==="heap");
   // 指標存的位址 → 畫箭頭用（data-p 指到 data-k / data-sk）
   const pAttr=pt=>pt&&pt.id>=0&&all.some(x=>x.id===pt.id)?` data-p="${pt.id}:${pt.i}"`:"";
-  const ptrTxt=v=>v.psdef?v.psdef.name+"*":TNAME[v.elem]+"*";
+  const ptrTxt=v=>(v.psdef?v.psdef.name:TNAME[v.elem])+"*".repeat(v.plv||1);
   for(const grp of [...(hasG?["global"]:[]),...frames.map(f=>f.key),...(hasH?["heap"]:[])]){
     const vs=all.filter(v=>v.scope===grp),rs=refs.filter(r=>r.frame===grp),fi=frames.findIndex(f=>f.key===grp);
     if(grp==="heap"){h+=`<div class="grp heap">heap：用 new 借來的空間（沒有名字，只能靠指標找到）</div>`}
@@ -443,6 +448,10 @@ function drawArrows(){
   for(const s of srcs){
     const t=box.querySelector(`[data-sk="${s.dataset.p}"]`)||box.querySelector(`[data-k="${s.dataset.p}"]`);if(!t)continue;
     const a=s.getBoundingClientRect(),b=t.getBoundingClientRect(),k=nk++;
+    // 指向「指標」的箭頭（指標的指標）換一個顏色，比較容易分開看
+    // 顏色：從函式指到外面的是粉紅（優先），指向另一個指標的是橘色
+    const tp=!!t.dataset.p&&t.matches(".box"),out=fnOut(memVars,+(s.dataset.k||"").split(":")[0],+s.dataset.p.split(":")[0]);
+    const cls=out?"ln ln3":tp?"ln ln2":"ln",dc=out?' class="d3"':tp?' class="d2"':"";
     let x1=a.right+ox-4;const y1=a.top+a.height/2+oy;
     const stacked=t.matches(".box")||t.dataset.sk&&!t.closest(".heaprow"),toHeap=!!t.closest(".heaprow")&&!s.closest(".heaprow");
     let d;
@@ -451,7 +460,11 @@ function drawArrows(){
       d=`M${sx},${sy} C${sx},${sy+k} ${x2},${y2-k} ${x2},${y2}`;
       paths+=`<path class="ln" d="${d}"/><circle cx="${sx}" cy="${sy}" r="3"/>`;continue;
     }
-    if(s.matches(".box")&&stacked&&!(b.top<a.bottom-4&&b.bottom>a.top+4)){
+    if(s.matches(".box")&&stacked&&tp&&!(b.top<a.bottom-4&&b.bottom>a.top+4)){
+      // 指標的指標 → 指標：走右邊，跟左邊那條「指標 → 變數」的箭頭分開，不會交叉
+      const x2=b.right+ox+1,y2=b.top+b.height/2+oy,cx=Math.max(a.right,b.right)+ox+26;
+      d=`M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+    }else if(s.matches(".box")&&stacked&&!(b.top<a.bottom-4&&b.bottom>a.top+4)){
       // 上下排的變數：從左邊（位址旁的空隙）繞過去，不會蓋到變數名稱
       x1=a.left+ox+4;const x2=b.left+ox-1,y2=b.top+b.height/2+oy,lx=Math.min(a.left,b.left)+ox-14-5*(k%3);
       d=`M${x1},${y1} C${lx},${y1} ${lx},${y2} ${x2},${y2}`;
@@ -479,9 +492,9 @@ function drawArrows(){
       const below=b.top>=a.bottom-4,x2=b.left+Math.min(b.width/2,34)+ox,y2=(below?b.top-1:b.bottom+1)+oy,k=Math.max(30,Math.abs(y2-y1)/2);
       d=`M${x1},${y1} C${x1+50},${y1} ${x2},${below?y2-k:y2+k} ${x2},${y2}`;
     }
-    paths+=`<path class="ln" d="${d}"/><circle cx="${x1}" cy="${y1}" r="3.5"/>`;
+    paths+=`<path class="${cls}" d="${d}"/><circle${dc} cx="${x1}" cy="${y1}" r="3.5"/>`;
   }
-  box.insertAdjacentHTML("beforeend",`<svg class="arrows" width="${box.scrollWidth}" height="${box.scrollHeight}" aria-hidden="true"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${paths}</svg>`);
+  box.insertAdjacentHTML("beforeend",`<svg class="arrows" width="${box.scrollWidth}" height="${box.scrollHeight}" aria-hidden="true"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d2" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d3" d="M0,0 L10,5 L0,10 z"/></marker></defs>${paths}</svg>`);
 }
 addEventListener("resize",()=>drawArrows());
 function renderTT(){
@@ -583,7 +596,39 @@ function setNavHidden(h){
   store.set("ckviz-nav-hidden",h);
 }
 setNavHidden(store.get("ckviz-nav-hidden",false));
-$("navToggle").onclick=()=>setNavHidden(!document.querySelector(".app").classList.contains("nav-hidden"));
+// 拖拉目錄右緣（或把手）調整寬度，字體會跟著變大變小；拉得太窄就直接收合
+const NAV_MIN=200,NAV_FOLD=140;
+const navMax=()=>Math.min(600,Math.round(innerWidth*.6));
+function setNavWidth(w,save=true){
+  w=Math.max(NAV_MIN,Math.min(navMax(),Math.round(w)));
+  document.querySelector(".app").style.setProperty("--nav-w",w+"px");
+  if(save)store.set("ckviz-nav-w",w);
+}
+setNavWidth(store.get("ckviz-nav-w",280),false);
+let navDragged=false;
+function startNavDrag(e){
+  if(e.button!==0)return;
+  const app=document.querySelector(".app"),x0=e.clientX,el=e.currentTarget;
+  navDragged=false;el.setPointerCapture(e.pointerId);
+  const move=ev=>{
+    if(!navDragged&&Math.abs(ev.clientX-x0)<4)return; // 小於 4px 當成點一下
+    navDragged=true;app.classList.add("nav-dragging");
+    const x=ev.clientX-app.getBoundingClientRect().left;
+    if(x<NAV_FOLD){setNavHidden(true);return}
+    if(app.classList.contains("nav-hidden"))setNavHidden(false);
+    setNavWidth(x);
+  };
+  const up=()=>{app.classList.remove("nav-dragging");if(navDragged)drawArrows();if(el.id!=="navToggle")navDragged=false;el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up)};
+  el.addEventListener("pointermove",move);el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);
+}
+$("navToggle").addEventListener("pointerdown",startNavDrag);
+$("navResizer").addEventListener("pointerdown",startNavDrag);
+$("navResizer").ondblclick=()=>setNavWidth(280); // 雙擊右緣回到預設寬度
+$("navToggle").onclick=()=>{
+  if(navDragged){navDragged=false;return} // 剛拖完放開，不要順便收合
+  setNavHidden(!document.querySelector(".app").classList.contains("nav-hidden"));
+};
+addEventListener("resize",()=>{if(innerWidth>860)setNavWidth(store.get("ckviz-nav-w",280),false)});
 document.addEventListener("keydown",e=>{
   if(/TEXTAREA|INPUT/.test(e.target.tagName))return;
   if(e.key==="ArrowRight"&&!$("next").disabled){e.preventDefault();$("next").click()}

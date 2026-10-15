@@ -27,38 +27,44 @@ button{font:inherit;color:inherit}
 button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 code{font-family:var(--mono);font-size:.92em;background:var(--panel);padding:0 5px;border-radius:4px}
 
-.app{display:grid;grid-template-columns:280px minmax(0,1fr);height:100%}
+.app{--nav-w:280px;display:grid;grid-template-columns:var(--nav-w) minmax(0,1fr);height:100%}
 .app.nav-hidden{grid-template-columns:minmax(0,1fr)}
 .app.nav-hidden>nav{display:none}
 .app{position:relative}
 /* 目錄右緣中間的把手：點一下收合／拉開 */
-.nav-toggle{position:absolute;top:50%;left:280px;transform:translate(-50%,-50%);z-index:10;width:22px;height:56px;padding:0;border:1.5px solid var(--accent);border-radius:11px;background:var(--accent);color:var(--panel);font-size:1.1rem;font-weight:700;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.nav-toggle{position:absolute;top:50%;left:var(--nav-w);transform:translate(-50%,-50%);z-index:10;touch-action:none;width:22px;height:56px;padding:0;border:1.5px solid var(--accent);border-radius:11px;background:var(--accent);color:var(--panel);font-size:1.1rem;font-weight:700;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .nav-toggle::before{content:"‹"}
 .nav-toggle:hover{filter:brightness(1.12)}
 .app.nav-hidden>.nav-toggle{left:0;transform:translateY(-50%);border-left:none;border-radius:0 11px 11px 0}
 .app.nav-hidden>.nav-toggle::before{content:"›"}
 .app.nav-hidden>main{padding-left:24px} /* 讓出把手的位置，不壓到內容 */
+/* 目錄右緣整條都能拖拉調寬度（把手本身也能拖） */
+.nav-resizer{position:absolute;top:0;bottom:0;left:var(--nav-w);width:10px;transform:translateX(-50%);z-index:9;cursor:col-resize;touch-action:none}
+.nav-resizer:hover,.app.nav-dragging>.nav-resizer{background:linear-gradient(to right,transparent 4px,var(--accent) 4px,var(--accent) 6px,transparent 6px)}
+.app.nav-hidden>.nav-resizer{display:none}
+.app.nav-dragging{cursor:col-resize;user-select:none}
+.app.nav-dragging>main{pointer-events:none}
 /* ---------- 目錄 ---------- */
-nav{background:var(--panel);border-right:1.5px solid var(--line);overflow-y:auto;padding:18px 14px 30px}
-.brand{font-weight:900;font-size:1.3rem;line-height:1.25;margin:0 0 4px}
-.brand-sub{font-size:.85rem;color:var(--muted);margin:0 0 14px}
-.progress{font-size:.8rem;color:var(--muted);margin-bottom:10px}
+nav{background:var(--panel);border-right:1.5px solid var(--line);overflow-y:auto;padding:18px 14px 30px;font-size:clamp(14px,calc(var(--nav-w) * 16 / 280),24px)} /* 字體跟著目錄寬度變大變小 */
+.brand{font-weight:900;font-size:1.3em;line-height:1.25;margin:0 0 4px}
+.brand-sub{font-size:.85em;color:var(--muted);margin:0 0 14px}
+.progress{font-size:.8em;color:var(--muted);margin-bottom:10px}
 .bar{height:6px;border-radius:3px;background:var(--next);overflow:hidden;margin-top:4px}
 .bar i{display:block;height:100%;background:var(--accent)}
-.part{font-size:.8rem;font-weight:700;color:var(--muted);margin:18px 6px 4px}
+.part{font-size:.8em;font-weight:700;color:var(--muted);margin:18px 6px 4px}
 .ch{margin:2px 0}
 .ch-title{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;background:none;border:none;padding:6px 8px;border-radius:6px;cursor:pointer;font-weight:700}
 .ch-title:hover{background:var(--next)}
-.ch-no{font-family:var(--mono);color:var(--muted);font-size:.85rem;width:1.6em;flex:none}
+.ch-no{font-family:var(--mono);color:var(--muted);font-size:.85em;width:1.6em;flex:none}
 .ch.soon .ch-title{color:var(--muted);font-weight:500}
-.soon-tag{font-size:.7rem;border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:auto;color:var(--muted);font-weight:500}
+.soon-tag{font-size:.7em;border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:auto;color:var(--muted);font-weight:500}
 .ls{list-style:none;margin:0 0 6px;padding:0 0 0 30px}
-.ls li button{display:flex;gap:6px;width:100%;text-align:left;background:none;border:none;padding:3px 8px;border-radius:5px;cursor:pointer;font-size:.92rem}
+.ls li button{display:flex;gap:6px;width:100%;text-align:left;background:none;border:none;padding:3px 8px;border-radius:5px;cursor:pointer;font-size:.92em}
 .ls li button:hover{background:var(--next)}
 .ls li button[aria-current="true"]{background:var(--ink);color:var(--bg)}
-.ls .lid{font-family:var(--mono);font-size:.8rem;opacity:.7;flex:none;padding-top:2px}
-.ls .seen{margin-left:auto;color:var(--ok);font-size:.8rem}
-.soon-list{margin:0 0 6px;padding:0 0 0 38px;font-size:.82rem;color:var(--muted)}
+.ls .lid{font-family:var(--mono);font-size:.87em;opacity:.7;flex:none;padding-top:2px}
+.ls .seen{margin-left:auto;color:var(--ok);font-size:.87em}
+.soon-list{margin:0 0 6px;padding:0 0 0 38px;font-size:.82em;color:var(--muted)}
 .soon-list li{margin:1px 0}
 
 main{overflow-y:auto}
@@ -183,10 +189,10 @@ footer{margin-top:16px;font-size:.8rem;color:var(--muted)}
 @media (max-width:1150px){.grid{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:860px){
   .app{grid-template-columns:minmax(0,1fr)}
-  nav{position:fixed;inset:0 auto 0 0;width:min(320px,88vw);z-index:20;transform:translateX(-105%);transition:transform .2s;padding-top:calc(18px + env(safe-area-inset-top,0px))}
+  nav{position:fixed;inset:0 auto 0 0;width:min(320px,88vw);font-size:16px;z-index:20;transform:translateX(-105%);transition:transform .2s;padding-top:calc(18px + env(safe-area-inset-top,0px))}
   nav.open{transform:none;box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}
   .topbar{display:flex}
-  .nav-toggle{display:none}
+  .nav-toggle,.nav-resizer{display:none}
   .app.nav-hidden>nav{display:block}
   .app.nav-hidden>main{padding-left:0}
   .io-grid,.cmp{grid-template-columns:1fr}
@@ -334,6 +340,10 @@ main>*{min-width:0}
 svg.arrows{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:2}
 svg.arrows .ln{fill:none;stroke:var(--accent);stroke-width:2.2;marker-end:url(#ah);opacity:.9}
 svg.arrows circle,svg.arrows marker path{fill:var(--accent)}
+svg.arrows .ln2{stroke:var(--num);marker-end:url(#ah2)}
+svg.arrows .d2{fill:var(--num)}
+svg.arrows .ln3{stroke:var(--io);marker-end:url(#ah3)}
+svg.arrows .d3{fill:var(--io)}
 .heaprow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 40px;padding:2px 0 4px 4px}
 .hnode{flex:none}
 .hnode .sbox{margin:2px 0 0;max-width:none;overflow:visible}

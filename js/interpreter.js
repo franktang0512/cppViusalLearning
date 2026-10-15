@@ -158,9 +158,10 @@ function parse(src){
     const st=peek().s,type=parseType(),elem=CONTS.includes(type)?lastElem:null,elem2=CONTS.includes(type)?lastElem2:null,esdef=CONTS.includes(type)?lastESdef:null,sdef=type==="struct"?lastSdef:null,items=[];
     do{
       let ref=false;if(is("&")){next();ref=true}
-      let ptr=false;while(is("*")){next();if(ptr)throw cerr(peek().s,"這個網頁還不支援指標的指標（**）");ptr=true}
+      let ptr=false,plv=0;while(is("*")){next();ptr=true;plv++}
+      if(plv>2)throw cerr(peek().s,Tx("這個網頁只支援到指標的指標（**）","This site supports pointers up to two levels (**)"));
       const id=next();if(id.t!=="id")throw cerr(id.s,Tx("型別後面要接變數名稱","A type must be followed by a variable name"));
-      const it={name:id.v,s:id.s,ptr,ref};
+      const it={name:id.v,s:id.s,ptr,ref,plv};
       if(is("(")&&["vector","deque","list"].includes(type)){next();it.ctor=[];if(!is(")")){do{it.ctor.push(parseAssign())}while(is(",")&&next())}expect(")")}
       if(ref&&!is("="))throw cerr(id.s,`參考（別名）宣告時一定要綁定一個變數，例如 int &${id.v} = a;`);
       if(is("[")){next();if(is("]"))it.auto=true;else it.size=parseExpr();expect("]")}
@@ -312,8 +313,9 @@ function parse(src){
     const ps=[];if(is(")"))return ps;
     if(is("void")&&is(")",1)){next();return ps}
     do{
-      const st=peek().s,base=parseType(),sdef=base==="struct"?lastSdef:null;let ref=false,arr=false,ptr=false;
-      while(is("*")){next();ptr=true}
+      const st=peek().s,base=parseType(),sdef=base==="struct"?lastSdef:null;let ref=false,arr=false,ptr=false,plv=0;
+      while(is("*")){next();ptr=true;plv++}
+      if(plv>2)throw cerr(peek().s,Tx("這個網頁只支援到指標的指標（**）","This site supports pointers up to two levels (**)"));
       const type=ptr?"ptr":base,elem=ptr?base:CONTS.includes(base)?lastElem:null,elem2=!ptr&&CONTS.includes(base)?lastElem2:null,esdef=!ptr&&CONTS.includes(base)?lastESdef:null;
       if(is("&")){next();ref=true}
       const id=next();if(id.t!=="id")throw cerr(id.s,"參數的型別後面要接名稱，例如 int a");
@@ -324,7 +326,7 @@ function parse(src){
       let def=null;
       if(is("=")){const eq=next();if(ref||arr)throw cerr(eq.s,"傳參考和陣列參數不能有預設值");def=parseAssign()}
       if(ptr&&(ref||arr))throw cerr(st,"這個網頁還不支援這種指標參數");
-      ps.push({type,elem,elem2,esdef,sdef:ptr?null:sdef,psdef:ptr?sdef:null,name:id.v,ref,arr,arr2,def,s:st});
+      ps.push({type,elem,elem2,esdef,sdef:ptr?null:sdef,psdef:ptr?sdef:null,plv,name:id.v,ref,arr,arr2,def,s:st});
     }while(is(",")&&next());
     let seenDef=false;
     for(const pm of ps){if(pm.def)seenDef=true;else if(seenDef)throw cerr(pm.s,`有預設值的參數要放在後面：${pm.name} 前面的參數有預設值，所以 ${pm.name} 也要有預設值，或把有預設值的參數移到 ${pm.name} 後面。（呼叫時傳進去的值是從左邊開始對上參數的，前面的參數有預設值、後面的卻沒有，就對不起來了。）`)}
@@ -463,7 +465,20 @@ function run(prog,src,input){
       if(val.v.sdef!==sd&&!(sd.pair&&val.v.sdef.pair))throw rterr(node,`${L} 是 ${esc(sd.name)}，不能放進 ${esc(val.v.sdef.name)}：不同的 struct 不能互相指定。`);
     }else if(val.t==="struct")throw rterr(node,`不能把整個 struct 放進 ${L}。要用其中一個欄位，例如 <code>${esc(val.v.sdef.fields[0].name)}</code>：寫成 變數.${esc(val.v.sdef.fields[0].name)}。`);
   }
-  const pval=(v,i)=>({t:"ptr",v:ptrTo(v,i),elem:v.type});
+  const pval=(v,i)=>({t:"ptr",v:ptrTo(v,i),elem:v.type,lv:v.type==="ptr"?(v.plv||1)+1:1});
+  // 一個指標位置是幾層：struct 欄位、容器裡的指標都是一層
+  const plvOf=r=>r.cont||r.ft?1:(r.v.plv||1);
+  const starTy=(base,lv)=>base+"*".repeat(lv||1);
+  // 指標最裡面指向的型別名稱（int**、Node* 的 int、Node）
+  const ptrBase=r=>{if(r.cont)return"";const f=r.ft?r.v.sdef.fields[r.fi]:r.v;return f.psdef?f.psdef.name:TNAME[f.elem]};
+  // 層數對不上就報錯：int** 只能放「指標的位址」
+  function chkLevel(node,want,val,label,base){
+    if(val.t!=="ptr"||val.v===null||!val.lv||val.lv===want)return;
+    const L=`<code>${esc(label)}</code>`,W=esc(starTy(base,want)),G=esc(starTy(base,val.lv));
+    throw rterr(node,want>val.lv
+      ?Tx(`${L} 是 <b>${W}</b>（指標的指標），要放「<b>指標</b>的位址」，例如 &amp;p（p 是一個 ${esc(starTy(base,want-1))}）。<br>這裡放的是 ${G}，也就是普通變數的位址，層數少了一層。`,`${L} is <b>${W}</b> (a pointer to a pointer). It needs the address of a <b>pointer</b>, like &amp;p (where p is ${esc(starTy(base,want-1))}).<br>This value is ${G}, the address of a plain variable — one level short.`)
+      :Tx(`${L} 是 <b>${W}</b>，只能放一個普通變數的位址。這裡放的是 ${G}（指標的位址），層數多了一層。是不是要先加 * 拿出裡面的位址？`,`${L} is <b>${W}</b>, so it holds the address of a plain variable. This value is ${G} (the address of a pointer) — one level too many. Did you mean to add * first?`));
+  }
   function targetLabel(pv){if(pv===null)return"（不指向任何東西）";const v=S.vars.find(x=>x.id===pv.id);return v?cellName(v,pv.i):"（已經被收回的變數）"}
   // 陣列第 i 格的名字：二維陣列寫成 a[列][行]
   const cellName=(v,i)=>v.dims?`${v.name}[${Math.floor(i/v.dims[1])}][${i%v.dims[1]}]`:v.isArr?`${v.name}[${i}]`:v.name;
@@ -491,7 +506,7 @@ function run(prog,src,input){
       if((op!=="+"&&op!=="-")||(op==="-"&&b.t==="ptr")||typeof k!=="number")throw rterr(node,"指標只能加減一個整數（往後或往前移幾格）");
       if(P.v===null||P.v.id<0)throw rterr(node,"這個指標沒有指向任何變數，不能加減");
       const d=op==="+"?k:-k;
-      return{t:"ptr",v:{...P.v,i:P.v.i+d,addr:P.v.addr+d*P.v.sz},elem:P.elem};
+      return{t:"ptr",v:{...P.v,i:P.v.i+d,addr:P.v.addr+d*P.v.sz},elem:P.elem,lv:P.lv};
     }
     if(a.t==="string"||b.t==="string"){
       if(op!=="+"||a.t!=="string"&&a.t!=="char"||b.t!=="string"&&b.t!=="char")throw rterr(node,"字串只能用 + 和字串（或字元）接起來。");
@@ -575,7 +590,7 @@ function run(prog,src,input){
     throw rterr(n,"這裡需要一個變數");
   }
   // 讀一個位置目前的值（不算「讀取」，畫面不會標藍框）
-  const peekv=r=>r.cont?(r.sf?{t:r.et,v:r.arr[r.ci].vals[r.fi]}:{t:r.et,v:r.arr[r.ci],elem:r.elem2}):r.str?{t:"char",v:r.v.values[0].charCodeAt(r.si)||0}:r.whole?sval(r.v.sdef,wslots(r).map(k=>r.v.values[k]),wslots(r).map(k=>r.v.init[k])):{t:tyOf(r),v:r.v.values[r.i]};
+  const peekv=r=>r.cont?(r.sf?{t:r.et,v:r.arr[r.ci].vals[r.fi]}:{t:r.et,v:r.arr[r.ci],elem:r.elem2}):r.str?{t:"char",v:r.v.values[0].charCodeAt(r.si)||0}:r.whole?sval(r.v.sdef,wslots(r).map(k=>r.v.values[k]),wslots(r).map(k=>r.v.init[k])):tyOf(r)==="ptr"?{t:"ptr",v:r.v.values[r.i],lv:plvOf(r)}:{t:tyOf(r),v:r.v.values[r.i]};
   function load(r){
     if(r.cont){if(!S.quiet)S.read.add(r.key);return peekv(r)}
     if(r.str){
@@ -589,7 +604,7 @@ function run(prog,src,input){
       return peekv(r);
     }
     if(!S.quiet){S.read.add(r.key);if(!r.v.init[r.i])note(Tx(`⚠ <code>${esc(r.label)}</code> 還沒給過值，讀到的是<b>垃圾值</b> ${fmtVal(tyOf(r),r.v.values[r.i])}。`,`⚠ <code>${esc(r.label)}</code> has no value yet, so it reads a <b>garbage value</b> ${fmtVal(tyOf(r),r.v.values[r.i])}.`))}
-    return{t:tyOf(r),v:r.v.values[r.i]};
+    const t=tyOf(r);return t==="ptr"?{t,v:r.v.values[r.i],lv:plvOf(r)}:{t,v:r.v.values[r.i]};
   }
   function store(r,val){
     if(r.cont){if(r.sf){const o=r.arr[r.ci];o.vals[r.fi]=conv(r.et,val);o.init[r.fi]=true}else r.arr[r.ci]=conv(r.et,val);S.changed.add(r.key);return}
@@ -791,6 +806,7 @@ function run(prog,src,input){
         chkStruct(n,r.whole?r.v.sdef:r.cont&&r.et==="struct"&&!r.sf?r.esdef:null,val,r.label);
         if(tyOf(r)==="ptr"&&!r.str&&n.op==="="&&val.t!=="ptr"&&!(val.v===0&&val.t==="int"))throw rterr(n,`<code>${esc(r.label)}</code> 是指標，只能放「位址」（例如 &amp;a）或 nullptr。`);
         if(val.t==="ptr"&&tyOf(r)!=="ptr")throw rterr(n,`<code>${esc(txt(n.r))}</code> 是位址，不能放進 ${TNAME[tyOf(r)]} 變數 <code>${esc(r.label)}</code>。是不是忘了加 *？`);
+        if(tyOf(r)==="ptr"&&!r.str&&n.op==="=")chkLevel(n,plvOf(r),val,r.label,ptrBase(r));
         if(n.op!=="="){const cur=load(r);val=arith(n.op[0],cur,val,n)}
         if(S.inCond&&n.op==="=")note(`⚠ 條件裡的 <code>=</code> 是「<b>指定</b>」，不是比較！<code>${esc(r.label)}</code> 被設成 ${fmtVal(o0.t,conv(o0.t,val))}。比較要用 <code>==</code>。`);
         store(r,val);const nw=peekv(r);
@@ -950,7 +966,8 @@ function run(prog,src,input){
         if(b.pm.type==="ptr"&&b.val.t!=="ptr"&&!(b.val.t==="int"&&b.val.v===0))throw rterr(n,`參數 <code>${esc(b.pm.name)}</code> 是指標，這裡要放「位址」，例如 <code>&amp;a</code>。是不是忘了加 &amp;？`);
         if(b.pm.type!=="ptr"&&b.val.t==="ptr")throw rterr(n,`參數 <code>${esc(b.pm.name)}</code> 是 ${TNAME[b.pm.type]}，這裡卻放了位址。`);
         chkStruct(n,b.pm.sdef,b.val,b.pm.name);
-        declElem=b.pm.elem;declElem2=b.pm.elem2||null;declESdef=b.pm.esdef||null;declSdef=b.pm.sdef;const v=declare(b.pm.type,b.pm.name,null,n,false);declElem=null;declElem2=null;declESdef=null;declSdef=null;if(b.pm.psdef)v.psdef=b.pm.psdef;
+        if(b.pm.type==="ptr")chkLevel(n,b.pm.plv||1,b.val,b.pm.name,b.pm.psdef?b.pm.psdef.name:TNAME[b.pm.elem]);
+        declElem=b.pm.elem;declElem2=b.pm.elem2||null;declESdef=b.pm.esdef||null;declSdef=b.pm.sdef;const v=declare(b.pm.type,b.pm.name,null,n,false);declElem=null;declElem2=null;declESdef=null;declSdef=null;if(b.pm.psdef)v.psdef=b.pm.psdef;if(b.pm.plv>1)v.plv=b.pm.plv;
         const r=v.sdef?wref(v,0,v.name):{v,i:0,key:v.id+":0"};store(r,b.val);const sh=peekv(r);
         parts.push(`${N} = ${esc(fmtVal(sh.t,sh.v))}${v.sdef?"（整個 struct <b>複製</b>一份）":""}${b.dflt?"（沒給，用<b>預設值</b>）":""}`)}
     }
@@ -1159,12 +1176,14 @@ function run(prog,src,input){
     if(it.size||it.auto||it.list)throw rterr(it,"這個網頁還不支援指標陣列");
     const val=it.init?ev(it.init):null;
     if(val&&val.t!=="ptr"&&!(val.t==="int"&&val.v===0))throw rterr(it,`指標只能放「位址」（例如 &amp;a）或 nullptr。`);
-    declElem=elem;const v=declare("ptr",it.name,null,it,global);declElem=null;if(sd)v.psdef=sd;
-    const EN=sd?sd.name:TNAME[elem],N=`<b>${esc(it.name)}</b>`,T=`${EN}*`;
+    const lv=it.plv||1,EN0=sd?sd.name:TNAME[elem];
+    if(val)chkLevel(it,lv,val,it.name,EN0);
+    declElem=elem;const v=declare("ptr",it.name,null,it,global);declElem=null;if(sd)v.psdef=sd;if(lv>1)v.plv=lv;
+    const EN=EN0+"*".repeat(lv-1),N=`<b>${esc(it.name)}</b>`,T=starTy(EN0,lv);
     if(val){store({v,i:0,key:v.id+":0"},val);const pv=v.values[0];
       return pv===null?`宣告指標 ${N}（${T}，8 bytes），放進 nullptr：現在不指向任何東西。`:`宣告指標 ${N}（${T}，8 bytes），放進位址 ${fmtVal("ptr",pv)}：${N} 現在<b>指向 ${esc(targetLabel(pv))}</b>。`}
     S.changed.add(v.id+":0");
-    return global?`宣告指標 ${N}（${T}）：全域指標一開始是 nullptr。`:`宣告指標 ${N}（${T}，8 bytes）：用來存一個 ${esc(EN)} 的「位址」。還沒給值 → 裡面是亂七八糟的位址（<b>野指標</b>），還不能用 *${esc(it.name)}。`;
+    return global?`宣告指標 ${N}（${T}）：全域指標一開始是 nullptr。`:`宣告指標 ${N}（${T}，8 bytes）：用來存一個 ${esc(EN)} 的「位址」。還沒給值 → 裡面是亂七八糟的位址（<b>野指標</b>），還不能用 *${esc(it.name)}。`+(lv>1?`<br>${N} 是<b>指標的指標</b>：它存的是「另一個指標」的位址，例如 ${esc(it.name)} = &amp;p;`:"");
   }
   function fillStruct(v,e,items,node){
     const sd=v.sdef,F=sd.fields.length;
