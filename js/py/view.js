@@ -56,7 +56,7 @@ function pyArrows(box){
 /* ---------- Python 語法上色 ---------- */
 function pyHl(s){
   const e=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const re=/(#.*$)|([fF]?"(?:[^"\\]|\\.)*"?|[fF]?'(?:[^'\\]|\\.)*'?)|\b(if|elif|else|while|for|in|break|continue|pass|and|or|not|True|False|None|def|return)\b|\b(print|input|int|float|str|bool|len|range|type|map|abs|round|max|min|sum|list)\b|\b(\d+(?:\.\d+)?)\b/g;
+  const re=/(#.*$)|([fF]?"(?:[^"\\]|\\.)*"?|[fF]?'(?:[^'\\]|\\.)*'?)|\b(if|elif|else|while|for|in|break|continue|pass|and|or|not|True|False|None|def|return)\b|\b(print|input|int|float|str|bool|len|range|type|map|abs|round|max|min|sum|list|ord|chr)\b|\b(\d+(?:\.\d+)?)\b/g;
   let o="",last=0,m;
   while((m=re.exec(s))){o+=e(s.slice(last,m.index));const c=m[1]?"cm":m[2]?"str":m[3]?"kw":m[4]?"io":"num";o+=`<span class="${c}">${e(m[0])}</span>`;last=re.lastIndex}
   return o+e(s.slice(last));

@@ -353,7 +353,7 @@ function run(prog,src,input){
     throw rterr(n,`這個網頁目前只支援 {x}、{x:.2f}、{x:g} 這幾種格式`);
   }
   /* ---------- 內建函式 ---------- */
-  const BUILTINS={print:1,input:1,int:1,float:1,str:1,bool:1,len:1,type:1,abs:1,round:1,max:1,min:1,sum:1,range:1,list:1,map:1};
+  const BUILTINS={print:1,input:1,int:1,float:1,str:1,bool:1,len:1,type:1,abs:1,round:1,max:1,min:1,sum:1,range:1,list:1,map:1,ord:1,chr:1};
   function iterItems(o,n){
     if(o.t==="list"||o.t==="tuple"||o.t==="map")return o.v.map(i=>heap.get(i));
     if(o.t==="str")return[...o.v].map(c=>Str(c));
@@ -399,6 +399,12 @@ function run(prog,src,input){
       case"float":{const as=A();need(as,1,0);if(!as.length)return F(0);const o=as[0];if(isNum(o))return F(toF(o));
         if(o.t==="str"){const s=o.v.trim();if(!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(s))throw rterr(n,`<b>ValueError</b>：<code>float(${esc(repr(o))})</code> 轉不成小數。`);return F(parseFloat(s))}
         throw rterr(n,`<b>TypeError</b>：${kind(o)}不能轉成 float`)}
+      case"ord":{const as=A();need(as,1);const o=as[0];
+        if(o.t!=="str"||[...o.v].length!==1)throw rterr(n,`<b>TypeError</b>：ord( ) 裡面要放<b>一個字</b>（長度 1 的字串），這裡是 ${esc(repr(o))}。`);
+        const c=o.v.codePointAt(0);note(`ℹ <code>${esc(txt(n))}</code>：${esc(repr(o))} 的編號是 ${c}。`);return I(c)}
+      case"chr":{const as=A();need(as,1);const o=as[0];
+        if(o.t!=="int")throw rterr(n,`<b>TypeError</b>：chr( ) 裡面要放整數（編號）`);const c=Number(o.v);
+        if(c<0||c>0x10ffff)throw rterr(n,`<b>ValueError</b>：chr( ) 的編號超出範圍`);note(`ℹ <code>${esc(txt(n))}</code>：編號 ${c} 是 ${esc(repr({t:"str",v:String.fromCodePoint(c)}))}。`);return Str(String.fromCodePoint(c))}
       case"str":{const as=A();need(as,1,0);return Str(as.length?str(as[0]):"")}
       case"bool":{const as=A();need(as,1,0);return B(as.length?truthy(as[0]):false)}
       case"len":{const as=A();need(as,1);const o=as[0];if(o.t==="str"||o.t==="list"||o.t==="tuple")return I(o.v.length);throw rterr(n,`<b>TypeError</b>：${kind(o)}沒有長度`)}

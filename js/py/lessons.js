@@ -94,7 +94,12 @@ PY_CHAPTERS.push(
   goal:"在 C++ 裡，變數宣告了沒給值，裡面是亂七八糟的「垃圾值」。Python 沒有「宣告」這件事：名字要先用 = 貼到某個東西上，才算存在。\n還沒貼上去就使用，Python 會直接停下來，告訴你 NameError（找不到這個名字）。打錯字（例如大小寫不一樣）也會出現這個錯誤。",
   code:PY("total = 0","n = 5","total = total + n","print(Total)"),input:null,
   predict:"total 已經有值了，為什麼最後一行會出錯？",
-  ask:"把最後一行修好。如果把第一行 total = 0 刪掉，會在哪一行出錯？"}
+  ask:"把最後一行修好。如果把第一行 total = 0 刪掉，會在哪一行出錯？"},
+ {id:"2-9",title:"ord 和 chr：字元其實是數字",isNew:"ord( ) 拿到一個字的編號；chr( ) 把編號變回字",uses:"2-3 的型別",
+  goal:"電腦裡每一個字其實都有一個編號：'A' 是 65、'a' 是 97、數字字元 '0' 是 48。ord( ) 拿到一個字的編號，chr( ) 把編號變回字。\n所以字可以拿來加減：chr(ord(\"A\") + 2) 是 'C'；ord(\"7\") - ord(\"0\") 是 7，把數字字元變成真正的數字。\nPython 沒有 C++ 的 char 型別，一個字就是長度 1 的字串（str）。",
+  code:PY("c = \"A\"","print(ord(c))","print(chr(ord(c) + 2))","d = \"7\"","print(ord(d) - ord(\"0\"))"),input:null,
+  predict:"chr(ord(c) + 2) 會印出什麼？",
+  ask:"要把小寫 \"g\" 變成大寫，可以怎麼寫？（提示：大寫和小寫的編號差 32；也可以用 \"g\".upper()）"}
 ]},
 {part:"基礎程式設計",id:3,py:true,title:"條件判斷",lessons:[
  {id:"3-1",title:"if / else 與縮排",isNew:"if 條件:、else:；冒號 + 縮排決定哪些程式屬於 if",
@@ -160,7 +165,12 @@ PY_CHAPTERS.push(
   goal:"break：立刻跳出最近的那一層迴圈，後面的輪都不做了。\ncontinue：這一輪剩下的不做了，直接進入下一輪。",
   code:PY("for i in range(1, 11):","    if i % 3 == 0:","        continue","    if i > 7:","        break","    print(i, end=\" \")"),input:null,
   predict:"會印出哪些數字？3 和 6 會印嗎？",
-  ask:"把 continue 和 break 的兩個 if 對調順序，結果一樣嗎？"}
+  ask:"把 continue 和 break 的兩個 if 對調順序，結果一樣嗎？"},
+ {id:"4-8",title:"縮排不會把變數關起來",isNew:"if、for、while 裡面給值的名字，出來之後還在；只有函式會把變數分開",uses:"3-1、4-2",
+  goal:"C++ 裡，大括號 { } 裡面宣告的變數，離開大括號就被收回，不能再用。Python 不一樣：if、for、while 的縮排不會把變數關起來。在裡面第一次給值的名字，出來之後還能用；for 結束以後，迴圈的變數 i 會停在最後一個值。\n只有函式（第 8 章）才會把裡面的變數和外面分開。",
+  code:PY("for i in range(3):","    last = i * 10","print(i)","print(last)","if i > 0:","    msg = \"i 大於 0\"","print(msg)"),input:null,
+  predict:"迴圈結束後，i 和 last 還在嗎？分別是多少？",
+  ask:"把 range(3) 改成 range(0)（迴圈一輪都不跑），print(i) 會發生什麼事？"}
 ]},
 {part:"基礎程式設計",id:5,py:true,title:"list（串列）",lessons:[
  {id:"5-1",title:"list 是一排編號的格子",isNew:"[10, 20, 30]、a[0] 是第一個、len(a) 是長度",
@@ -202,12 +212,17 @@ PY_CHAPTERS.push(
   code:PY("n = int(input())","a = []","for i in range(n):","    x = int(input())","    if x % 2 == 0:","        a.append(x)","print(a, len(a))"),input:"5\n4\n7\n10\n3\n8",
   predict:"最後 a 裡面有哪些數字？",
   ask:"改成把奇數也另外收集到另一個 list b。"},
- {id:"5-8",title:"for x in a：一個一個拿出來",isNew:"for x in a：依序拿出每一個，不用自己管索引",uses:"5-1、4-2",
+ {id:"5-8",title:"做出 list 的幾種方法",isNew:"[ ]、[0] * n、[3, 1, 4]、list(range(...))、list(map(int, ...))",uses:"5-1、5-6、5-7、1-6 的 map",
+  goal:"要做一個 list，常用的有這幾種寫法：\n・a = [ ]：空的，之後再用 append 加進去\n・[0] * 5：5 格都是 0\n・[3, 1, 4]：直接寫出每一格\n・list(range(1, 6))：把 range 的每一個數放進去，得到 [1, 2, 3, 4, 5]\n・list(map(int, input().split()))：把一行輸入的數字全部讀進來\n就跟 C++ vector 的幾種宣告方式一樣，看題目需要哪一種就用哪一種。",
+  code:PY("a = []","b = [0] * 5","c = [3, 1, 4]","d = list(range(1, 6))","e = list(map(int, input().split()))","print(a, b, c)","print(d, e)"),input:"10 20 30",
+  predict:"d 和 e 分別是什麼？",
+  ask:"要做出 10 個 -1，要怎麼寫？list(range(0, 10, 2)) 會是什麼？"},
+ {id:"5-9",title:"for x in a：一個一個拿出來",isNew:"for x in a：依序拿出每一個，不用自己管索引",uses:"5-1、4-2",
   goal:"for x in a: 會依序把 a 的每一個元素拿出來，貼上名字 x，不用自己寫索引。\n注意：x 只是貼在元素上的名字。在迴圈裡寫 x = x * 2，只是把 x 改貼到新的數字，list 裡面的東西不會變。要改 list，還是得用索引 a[i]。",
   code:PY("a = [3, 1, 4]","total = 0","for x in a:","    total += x","print(total)","for x in a:","    x = x * 2","print(a)"),input:null,
   predict:"第二個迴圈做完，a 會變成 [6, 2, 8] 嗎？",
   ask:"改用 for i in range(len(a)): 和 a[i] = a[i] * 2，真的把 a 裡的每一個都變兩倍。"},
- {id:"5-9",title:"b = a 是同一個 list",isNew:"b = a 不會複製；要真的複製用 a.copy()",uses:"2-1 的 b = a",
+ {id:"5-10",title:"b = a 是同一個 list",isNew:"b = a 不會複製；要真的複製用 a.copy()",uses:"2-1 的 b = a",
   goal:"第 2-1 課說過：b = a 是把 b 也貼到 a 貼著的同一個物件上。數字不能改，所以看不出差別；但 list 可以改：用 b 改了內容，從 a 看也會看到！\n要得到一個「真的另外一份」，要用 a.copy()。看右邊的箭頭：a 和 b 指著同一個 list，c 指著另一個。",
   code:PY("a = [1, 2, 3]","b = a","c = a.copy()","b.append(4)","c.append(99)","print(a)","print(b)","print(c)"),input:null,
   predict:"b.append(4) 之後，a 會不會也多一個 4？c 呢？",
@@ -303,11 +318,11 @@ addPyExamples(5,[
 ]);
 /* ---------- 進階程式設計之後：先列大綱（章節順序跟 C++ 一樣，Python 不一樣的地方已經換掉） ---------- */
 PY_CHAPTERS.push(
-{part:"進階程式設計",id:6,py:true,title:"字串",soon:["字串是一串字元：s[i]、len(s)","字串不能改：要改就做一個新的","切片：s[a:b]","for c in s：一個字一個字拿出來","字元和數字：ord、chr（大小寫轉換）","input() 本來就讀一整行（對照 C++ 的 getline）","常用方法：split、join、find、replace","字串和數字互換：str( )、int( )"]},
+{part:"進階程式設計",id:6,py:true,title:"字串、dict 與 set",soon:["字串是一串字元：s[i]、len(s)","字串不能改：要改就做一個新的","切片：s[a:b]","for c in s：一個字一個字拿出來","大小寫轉換：upper、lower（接 2-9 的 ord、chr）","常用方法：split、join、find、replace","字串和數字互換：str( )、int( )","dict：用「鍵」找「值」（例如名字 → 分數）","dict 數一數每個字出現幾次","set：去掉重複、很快查有沒有","dict 和 set 不會自動排好（跟 C++ 的 map、set 不一樣）"]},
 {part:"進階程式設計",id:7,py:true,title:"二維串列",soon:["list 裡面放 list：表格","兩層迴圈走過整張表","讀入表格、每一列加總","轉置：列變成行","上下左右：dx、dy","邊界檢查的順序","陷阱：[[0] * c] * r 每一列是同一個 list","正確的做法：[[0] * c for _ in range(r)]","每一列可以不一樣長"]},
 {part:"進階程式設計",id:8,py:true,title:"函式",soon:["def：第一個函式","先定義，才能呼叫","參數與 return","return 之後就結束","參數的預設值","呼叫堆疊","全域變數與區域變數（global）","list 傳進函式會被改到","一次回傳好幾個值"]},
 {part:"進階程式設計",id:9,py:true,title:"遞迴",soon:["什麼是遞迴","呼叫堆疊長高再縮回","回來的路上也能做事","忘了終止條件：RecursionError","遞迴樹與重複計算","遞迴深度的上限"]},
-{part:"進階程式設計",id:10,py:true,title:"名字與物件（取代 C++ 的指標）",soon:["id( )：每個物件都有自己的編號","可變的和不可變的物件","is 和 == 不一樣","傳進函式：改內容 vs. 改貼別的東西","函式改不到外面的名字：用 return 帶回來","淺複製與深複製（二維 list 的陷阱）"]},
+{part:"進階程式設計",id:10,py:true,title:"名字與物件（短章，取代 C++ 的指標）",soon:["可變的和不可變的物件：為什麼 list 會被改到、int 不會","is 和 == 不一樣","淺複製與深複製（二維 list 的陷阱）"]},
 {part:"進階程式設計",id:11,py:true,title:"class 與鏈結串列（取代 struct）",soon:["class：把欄位綁在一起","__init__：建立物件時給初始值","物件 list：一群學生","b = a 是同一個物件","節點：data 和 next","把節點串起來，None 代表結尾","走訪鏈結串列","插在最前面","刪掉第一個節點（不用 delete，沒人指著就被回收）"]},
 {part:"進階程式設計",id:12,py:true,title:"Stack",soon:["用固定大小的 list 和 top 自己做","後進先出","空的不能 pop","list 當 stack：append 和 pop","追蹤 push / pop","遞迴其實就是 stack"]},
 {part:"進階程式設計",id:13,py:true,title:"Queue",soon:["用 list 和 front、rear 自己做","先進先出","空的、滿的、浪費的空間","環狀佇列","為什麼不要用 list.pop(0)：很慢","collections.deque","deque：兩頭都能進出"]},
@@ -324,5 +339,5 @@ PY_CHAPTERS.push(
 {part:"Case Study",id:24,py:true,title:"滑動視窗",soon:[]},
 {part:"Case Study",id:25,py:true,title:"大數：Python 內建，其他語言怎麼做",soon:["Python 的 int 沒有上限","用 list 模擬直式加法（了解 C++ 為什麼要自己寫）"]},
 {part:"Case Study",id:26,py:true,title:"圖論延伸",soon:["拓撲排序與判斷環","Bellman-Ford","二分圖判斷","最大流","最大匹配"]},
-{part:"Case Study",id:27,py:true,title:"set 與 dict",soon:["set：去掉重複","dict：用名字找值","Counter：數每個值出現幾次"]}
+{part:"Case Study",id:27,py:true,title:"Python 的速度與 TLE",soon:["為什麼同樣的演算法，Python 比 C++ 慢","sys.stdin.readline：讀大量輸入","deque、內建函式：能用內建的就用","遞迴改成迴圈：避開深度上限","Counter：數數用的 dict"]}
 );
