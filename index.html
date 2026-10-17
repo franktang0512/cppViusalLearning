@@ -22,6 +22,7 @@
       <button class="mode-btn" id="modeFlow" aria-pressed="false" data-en="Flowchart">流程圖</button>
       </div>
       -->
+      <div class="modes course" role="group" aria-label="選擇程式語言"><a class="mode-btn" id="courseCpp" href="?course=cpp">C++</a><a class="mode-btn" id="coursePy" href="?course=py">Python</a></div>
       <button class="mode-btn lang-btn" id="langBtn" title="切換成英文" data-en-title="Switch to Chinese">EN</button>
     </div>
     <!-- 流程圖模式先暫停
@@ -46,7 +47,7 @@
 
       <div class="grid">
         <section class="panel">
-          <div class="ph"><h2 data-en="Code">程式碼</h2><span class="sp"></span><button class="small-btn" id="editBtn" data-en="Edit">改改看</button></div>
+          <div class="ph"><h2 data-en="Code">程式碼</h2><span class="sp"></span><span class="edit-actions" id="editActions"></span><button class="small-btn" id="editBtn" data-en="✏️ Edit">✏️ 改改看</button></div>
           <div id="codeArea"></div>
           <div class="controls" id="ctl">
             <button class="btn" id="reset" data-en="Reset">重來</button>
@@ -55,7 +56,7 @@
             <button class="btn" id="play">▶ 自動</button>
             <button class="btn" id="end" data-en="To end">到最後</button>
           </div>
-          <div class="scrubrow"><input type="range" class="scrub" id="scrub" min="0" value="0" aria-label="拖曳到任一步" data-en-label="Drag to any step"><span class="count" id="count"></span></div>
+          <div class="scrubrow" id="scrubrow"><input type="range" class="scrub" id="scrub" min="0" value="0" aria-label="拖曳到任一步" data-en-label="Drag to any step"><span class="count" id="count"></span></div>
           
           <div class="note" id="note"></div>
           
@@ -112,6 +113,9 @@
 <script src="js/lessons/en/ch00-02.js"></script>
 <script src="js/graph.js"></script>
 <script src="js/dctree.js"></script>
+<script src="js/py/view.js"></script>
+<script src="js/py/interp.js"></script>
+<script src="js/py/lessons.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

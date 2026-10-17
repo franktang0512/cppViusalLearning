@@ -455,3 +455,34 @@ svg.graph{display:block;width:100%;max-width:440px;height:auto;margin:2px auto 0
 .graph.dc .seg text.rv{font-size:11px;fill:var(--accent);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
 .graph.dc text.di{font-family:var(--mono);font-size:10px;text-anchor:middle;fill:var(--muted)}
 .dclegend{min-height:3.4em}
+
+/* ---------- 課程切換：C++ / Python ---------- */
+.modes.course{margin-right:10px}
+.modes.course .mode-btn{text-decoration:none;color:var(--ink);display:inline-block;line-height:1.5}
+#courseCpp{border-radius:8px 0 0 8px}#coursePy{border-radius:0 8px 8px 0;border-left:none}
+.modes.course .mode-btn[aria-pressed="true"]{color:var(--bg)}
+
+/* ---------- Python 記憶體區：名字 → 物件 ---------- */
+.pymem{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 56px;align-items:start;position:relative}
+.pycol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.pycol.objs{align-items:flex-start}
+.pyhead{font-size:.78rem;color:var(--muted);font-weight:700;border-bottom:1px dashed var(--line);padding-bottom:2px}
+.pyname{font-family:var(--mono);font-weight:700;font-size:1.1rem;padding:6px 14px;border:2.5px solid var(--ink);border-radius:999px;background:var(--panel);min-width:2.6em;text-align:center}
+.pyobj{border:2.5px solid var(--ink);border-radius:8px;background:var(--box);padding:2px 10px 6px;min-width:62px;max-width:100%}
+.pyobj.seq{padding-bottom:2px}
+.pyobj .arr{margin-left:0;padding-top:2px}
+.pytag{font-size:.7rem;color:var(--muted);font-family:var(--mono)}
+.pyval{font-family:var(--mono);font-weight:700;font-size:1.2rem;white-space:pre-wrap;word-break:break-all}
+.pydead{margin-top:10px;font-size:.8rem;color:var(--muted)}
+
+/* ---------- 改改看：按鈕在「程式碼」標題列上 ---------- */
+#editBtn{border-color:var(--accent);color:var(--accent);font-weight:700}
+#editBtn:hover{background:var(--next)}
+#editBtn[hidden],#ctl[hidden],#scrubrow[hidden]{display:none!important}
+.edit-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.edit-actions:not(:empty){margin-right:6px}
+.small-btn.run{background:var(--accent);color:var(--panel);border-color:var(--accent);font-weight:700;padding:3px 12px}
+.small-btn.run:hover{filter:brightness(1.1)}
+.edited-tag{font-size:.75rem;font-weight:700;color:var(--warn-ink);background:var(--warn-bg);padding:1px 8px;border-radius:999px}
+.editor{min-height:200px;resize:vertical;overflow:hidden}
+kbd{font-family:var(--mono);font-size:.8em;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--panel)}

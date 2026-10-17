@@ -1,5 +1,7 @@
 /* ================= 介面 ================= */
 const $=id=>document.getElementById(id);
+// Python 課程（網址 ?course=py）：整套換成 js/py/lessons.js 的章節
+if(COURSE==="py"){CHAPTERS.length=0;PY_CHAPTERS.forEach(c=>CHAPTERS.push(c))}
 CHAPTERS.sort((a,b)=>a.id-b.id);
 const ALL=[];CHAPTERS.forEach(ch=>(ch.lessons||[]).forEach(l=>{l.ch=ch;ALL.push(l)}));
 // 有預期輸出的課都整理成 tests 清單；題目的第一組測資就是一開始的輸入
@@ -9,12 +11,12 @@ ALL.forEach(l=>{
 });
 applyLang();
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let seen=new Set(store.get("ckviz-seen",[]));
+let seen=new Set(store.get(SK+"seen",[]));
 const ST={L:null,code:"",input:"",trace:[],error:null,k:0,editing:false,playing:null,ws:false,tab:"mem",edits:{},inputs:{},tis:{},results:{},picks:{},ran:false};
 
 /* ---------- 目錄 ---------- */
 function renderNav(){
-  let h=`<p class="brand">${T("看得見的 C++","Step Into C++")}</p><p class="brand-sub">${T("每一章先看觀念，再看例題：一步一步看程式怎麼解決問題、變數怎麼變化、OJ 怎麼判。","Each chapter shows the idea first, then examples: watch step by step how a program solves a problem, how variables change, and how the OJ judges it.")}</p>
+  let h=`<p class="brand">${COURSE==="py"?T("看得見的 Python","Step Into Python"):T("看得見的 C++","Step Into C++")}</p><p class="brand-sub">${T("每一章先看觀念，再看例題：一步一步看程式怎麼解決問題、變數怎麼變化、OJ 怎麼判。","Each chapter shows the idea first, then examples: watch step by step how a program solves a problem, how variables change, and how the OJ judges it.")}</p>
   <div class="progress">${T("已看過","Viewed")} ${[...seen].filter(id=>ALL.some(l=>l.id===id)).length} / ${ALL.length} ${T("課","lessons")}<div class="bar"><i style="width:${100*seen.size/ALL.length}%"></i></div></div>`;
   let part="";
   for(const ch of CHAPTERS){
@@ -37,6 +39,7 @@ function renderNav(){
 
 /* ---------- 語法上色 ---------- */
 function hl(s){
+  if(COURSE==="py")return pyHl(s);
   if(/^\s*#/.test(s))return`<span class="pp">${esc(s)}</span>`;
   const re=/(\/\/.*$)|("(?:[^"\\]|\\.)*"?)|('(?:[^'\\]|\\.)*'?)|\b(int|long|double|float|char|bool|string|stack|queue|deque|vector|list|priority_queue|struct|new|delete|void|nullptr|if|else|while|for|break|continue|return|true|false|const|using|namespace)\b|\b(cin|cout|endl|getline|strlen)\b|\b(\d+(?:\.\d+)?)\b/g;
   let o="",last=0,m;
@@ -54,7 +57,7 @@ function openLesson(id){
   const L=ALL.find(l=>l.id===id)||ALL[0];ST.L=L;
   ST.code=ST.edits[L.id]??L.code;ST.input=L.tests?"":ST.inputs[L.id]??(L.input??"");ST.editing=false;
   ST.ran=false;ST.results={};delete ST.tis[L.id];
-  seen.add(L.id);store.set("ckviz-seen",[...seen]);store.set("ckviz-last",L.id);
+  seen.add(L.id);store.set(SK+"seen",[...seen]);store.set(SK+"last",L.id);
   const i=ALL.indexOf(L);
   $("crumb").textContent=T(`第 ${L.ch.id} 章・${L.ch.title}・${L.example?"例題 ":""}${L.id}`,`Chapter ${L.ch.id} · ${L.ch.title} · ${L.example?"Example ":""}${L.id}`);
   $("title").textContent=L.title;
@@ -63,13 +66,15 @@ function openLesson(id){
   $("tags").innerHTML=`<span class="tag-new">${L.example?T("重點","Key point"):T("新","New")}${T("：",": ")}${esc(L.isNew)}</span>`+(L.uses?`<span class="tag-use">${T("用到：","Uses: ")}${esc(L.uses)}</span>`:"");
   $("prevL").disabled=i===0;$("nextL").disabled=i===ALL.length-1;
   $("inwrap").innerHTML="";
-  renderNav();renderTests();rerun();
+  // 有測資的題目：一打開就先用第 1 筆測資跑，不用再自己按「執行」
+  if(L.tests&&!picks().length)picks().push("g0");
+  renderNav();renderTests();if(L.tests)runPicked();else rerun();
   document.querySelector("main").scrollTop=0;
 }
 function rerun(){
   // 有測資的題目：學生選好一筆測資、按「執行」之前，不跑程式
   if(ST.L.tests&&!ST.ran){ST.trace=[];ST.error=null;ST.k=0;updateTests();render(false);return}
-  const r=compileAndRun(ST.code,ST.input);
+  const r=runCode(ST.code,ST.input);
   ST.trace=r.trace;ST.error=r.error||null;ST.k=0;
   updateTests();render(false);
 }
@@ -77,7 +82,7 @@ function rerun(){
 /* ---------- 測資：題目給的 + 學生自己設計的 3 筆。一次只選一筆，按「執行」才判題 ---------- */
 const MINE_NOTE=()=>T(["例如：一般的情況","例如：剛好在邊界上","例如：最小值、0 或很大的數"],["e.g. a normal case","e.g. right on the edge","e.g. the smallest value, 0, or a very big number"]);
 const hasMine=L=>!!(L.example&&L.tests&&L.tests.some(t=>t.input));
-function myTests(L){const d=store.get("ckviz-mine-"+L.id,null);return Array.isArray(d)&&d.length===3?d:[0,1,2].map(()=>({input:"",output:"",note:""}))}
+function myTests(L){const d=store.get(SK+"mine-"+L.id,null);return Array.isArray(d)&&d.length===3?d:[0,1,2].map(()=>({input:"",output:"",note:""}))}
 function testList(L){
   if(!L.tests)return[];
   return[...L.tests.map((t,i)=>({...t,key:"g"+i,label:T(`測資 ${i+1}`,`Test ${i+1}`)})),
@@ -93,7 +98,7 @@ function judge(r,expected){
 function runPicked(){
   const L=ST.L,t=testList(L).find(t=>t.key===picks()[0]);
   if(!t){ST.ran=false;ST.results={};rerun();return}
-  const r=compileAndRun(ST.code,t.input);
+  const r=runCode(ST.code,t.input);
   ST.results={[t.key]:t.mine&&!t.output.trim()?(r.error?"CE":"—"):judge(r,t.output)};
   ST.ran=true;watchTest(t.key);
 }
@@ -122,16 +127,16 @@ function renderTests(){
         <tr class="subrow" data-sub="m${i}"><td></td><td colspan="4"><input data-m="${i}" data-f="note" aria-label="${T("測試重點","What it tests")}" placeholder="${T("測試重點，","What it tests, ")}${MINE_NOTE()[i]}" value="${esc(t.note).replace(/"/g,"&quot;")}"></td></tr>`).join("")+`</tbody></table>`;
   }
   box.innerHTML=h+`<div class="runbar"><button class="btn primary" id="runTests">${T("▶ 執行這筆測資","▶ Run this test")}</button><span class="hint" id="testsHint"></span></div>`;
-  // 換選另一筆：清掉上一筆的結果和逐步執行，回到「還沒執行」，避免學生搞混
+  // 換選另一筆：直接用那一筆重新跑（上一筆的結果一起清掉，不會搞混）
   box.querySelectorAll("[data-pick]").forEach(rb=>rb.onchange=()=>{
-    const P=picks();P.length=0;P.push(rb.dataset.pick);ST.ran=false;ST.results={};delete ST.tis[L.id];stop();rerun();
+    const P=picks();P.length=0;P.push(rb.dataset.pick);ST.results={};delete ST.tis[L.id];stop();runPicked();
   });
   box.querySelectorAll("tr[data-row]").forEach(tr=>tr.addEventListener("click",e=>{
     if(e.target.closest("textarea,input"))return;const rb=tr.querySelector("[data-pick]");if(!rb.checked){rb.checked=true;rb.onchange()}
   }));
   $("runTests").onclick=runPicked;
   box.querySelectorAll("[data-m]").forEach(el=>el.addEventListener("input",()=>{
-    const d=myTests(L),i=+el.dataset.m;d[i][el.dataset.f]=el.value;store.set("ckviz-mine-"+L.id,d);
+    const d=myTests(L),i=+el.dataset.m;d[i][el.dataset.f]=el.value;store.set(SK+"mine-"+L.id,d);
     if(el.dataset.f!=="note"&&picks()[0]==="m"+i&&ST.ran){ST.ran=false;ST.results={};stop();rerun()}
   }));
 }
@@ -152,18 +157,29 @@ function updateTests(){
 function render(flash){
   const L=ST.L,N=ST.trace.length,k=ST.k,s=k>0?ST.trace[k-1]:null,nx=k<N?ST.trace[k]:null;
   // 程式碼
+  // 改改看：執行／取消／還原的按鈕放在「程式碼」標題列上，程式再長、捲到哪裡都看得到
+  const acts=$("editActions"),edited=ST.code!==L.code;
   if(ST.editing){
     if(!$("editor")){
-      $("codeArea").innerHTML=`<textarea class="editor" id="editor" spellcheck="false" aria-label="${T("編輯程式碼","Edit the code")}"></textarea>
-        <div class="edit-bar"><button class="btn primary" id="runEdit">${T("執行修改後的程式","Run my changes")}</button><button class="btn" id="cancelEdit">${T("取消","Cancel")}</button><button class="btn" id="restore">${T("還原成原本的程式","Restore the original")}</button></div>`;
+      $("codeArea").innerHTML=`<textarea class="editor" id="editor" spellcheck="false" aria-label="${T("編輯程式碼","Edit the code")}"></textarea>`;
+      acts.innerHTML=`<button class="small-btn run" id="runEdit">${T("▶ 執行修改後的程式","▶ Run my changes")}</button><button class="small-btn" id="cancelEdit">${T("取消","Cancel")}</button><button class="small-btn" id="restore">${T("還原","Restore")}</button>`;
       const ed=$("editor");ed.value=ST.code;
-      ed.addEventListener("keydown",e=>{if(e.key==="Tab"){e.preventDefault();const a=ed.selectionStart;ed.setRangeText("    ",a,ed.selectionEnd,"end")}});
-      $("runEdit").onclick=()=>{ST.code=ed.value;ST.edits[L.id]=ST.code;ST.editing=false;if(L.tests&&picks().length)runPicked();else{ST.ran=false;ST.results={};rerun()}};
+      const fit=()=>{ed.style.height="auto";ed.style.height=Math.max(ed.scrollHeight+4,200)+"px"};fit();ed.addEventListener("input",fit);
+      const runIt=()=>{ST.code=ed.value;ST.edits[L.id]=ST.code;ST.editing=false;if(L.tests&&picks().length)runPicked();else{ST.ran=false;ST.results={};rerun()}};
+      ed.addEventListener("keydown",e=>{
+        if(e.key==="Tab"){e.preventDefault();const a=ed.selectionStart;ed.setRangeText("    ",a,ed.selectionEnd,"end")}
+        if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();runIt()}
+        if(e.key==="Escape"){ST.editing=false;render(false)}
+      });
+      $("runEdit").onclick=runIt;
       $("cancelEdit").onclick=()=>{ST.editing=false;render(false)};
-      $("restore").onclick=()=>{ed.value=L.code};
+      $("restore").onclick=()=>{ed.value=L.code;fit();ed.focus()};
       ed.focus();
     }
   }else{
+    // 跑的是改過的程式時，標題列提醒一下，也可以一鍵還原
+    acts.innerHTML=edited?`<span class="edited-tag">${T("已修改","Edited")}</span><button class="small-btn" id="restoreRun">${T("還原","Restore")}</button>`:"";
+    if(edited)$("restoreRun").onclick=()=>{stop();ST.code=L.code;delete ST.edits[L.id];if(L.tests&&picks().length)runPicked();else{ST.ran=false;ST.results={};rerun()}};
     const lines=ST.code.split("\n");let off=0;
     const cur=s?s.line:-1,nxl=nx&&!s?.done?nx.line:-1,bad=ST.error?ST.error.line:-1;
     $("codeArea").innerHTML=`<div class="code">`+lines.map((t,i)=>{
@@ -178,7 +194,14 @@ function render(flash){
   }
   if(!ST.editing){const cl=$("codeArea").querySelector(".ln.cur,.ln.bad"),box=$("codeArea");
     if(cl&&box.scrollHeight>box.clientHeight){const t=cl.offsetTop-box.offsetTop;if(t<box.scrollTop+20||t>box.scrollTop+box.clientHeight-50)box.scrollTop=t-box.clientHeight/3}}
-  $("editBtn").setAttribute("aria-pressed",ST.editing);
+  $("editBtn").setAttribute("aria-pressed",ST.editing);$("editBtn").hidden=ST.editing;
+  // 改程式的時候，一步一步的按鈕用不到，先藏起來，免得看起來能按卻沒反應
+  $("ctl").hidden=$("scrubrow").hidden=ST.editing;
+  if(ST.editing){
+    $("note").innerHTML=T(`<b>✏️ 正在改程式</b><br>改好之後，按「程式碼」右上角的 <b>▶ 執行修改後的程式</b>（或按 <kbd>Ctrl</kbd> + <kbd>Enter</kbd>），就會從頭一步一步執行你改過的程式。<br>不想改了就按「取消」（或 <kbd>Esc</kbd>）；「還原」會變回原本的程式。`,
+      `<b>✏️ Editing</b><br>When you are done, press <b>▶ Run my changes</b> at the top right of "Code" (or <kbd>Ctrl</kbd> + <kbd>Enter</kbd>) to run your program step by step.<br>"Cancel" (or <kbd>Esc</kbd>) stops editing; "Restore" brings back the original program.`);
+    renderTT();return;
+  }
   // 控制
   const dis=!!ST.error||ST.editing;
   $("prev").disabled=dis||k===0;$("reset").disabled=dis||k===0;
@@ -192,7 +215,7 @@ function render(flash){
   if(ST.error)note=T(`<div class="err"><b>編譯錯誤（第 ${ST.error.line} 行）：</b>${ST.error.msg}</div><div class="hint" style="margin-top:6px">按「改改看」修正後再執行。</div>`,
     `<div class="err"><b>Compile error (line ${ST.error.line}): </b>${ST.error.msg}</div><div class="hint" style="margin-top:6px">Press "Edit", fix it, and run again.</div>`);
   else if(waiting)note=T(`先在上面<b>選一筆測資</b>，再按「▶ 執行這筆測資」。程式會用那一筆測資的輸入來跑。`,`First <b>pick a test</b> above, then press "▶ Run this test". The program will use the input of that test.`);
-  else if(k===0)note=T(`按「下一步」開始。程式從 <code>main</code> 的第一行開始，一次執行一小步。`,`Press "Next" to start. The program starts at the first line of <code>main</code> and runs one small step at a time.`);
+  else if(k===0)note=COURSE==="py"?T(`按「下一步」開始。程式從第一行開始，一次執行一小步。`,`Press "Next" to start. The program starts at the first line and runs one small step at a time.`):T(`按「下一步」開始。程式從 <code>main</code> 的第一行開始，一次執行一小步。`,`Press "Next" to start. The program starts at the first line of <code>main</code> and runs one small step at a time.`);
   else{
     note=s.note;
     if(L.tips){const lt=ST.code.split("\n")[s.line-1]||"";for(const[m,t]of Object.entries(L.tips))if(lt.includes(m))note+=`<div class="tip">💡 ${t}</div>`}
@@ -201,7 +224,7 @@ function render(flash){
   const legend=!ST.error&&k>=1&&k<=2?`<div class="hint" style="margin-bottom:4px">${T("黃色＝剛剛執行的那一行，底線＝那一行裡正在執行的部分，▸＝下一步。","Yellow = the line that just ran. Underline = the part of that line that is running. ▸ = the next step.")}</div>`:"";
   const ask=(k===0&&L.predict&&!ST.error)?`<div class="ask"><b>${T("先猜猜看：","Guess first: ")}</b>${esc(L.predict)}</div>`:(s&&s.done&&L.ask)?`<div class="ask"><b>${T("想一想：","Think about it: ")}</b>${esc(L.ask)}</div>`:"";
   $("note").innerHTML=legend+note+ask;
-  renderMem(s,flash);renderTT();renderIO(s,flash);renderJudge(s);renderGraph(L,s);renderDC(L,s);
+  (COURSE==="py"?renderPyMem:renderMem)(s,flash);renderTT();renderIO(s,flash);renderJudge(s);renderGraph(L,s);renderDC(L,s);
 }
 
 function memLegend(s){
@@ -439,6 +462,7 @@ function renderMem(s,flash){
 
 // 指標箭頭：從存位址的格子，畫到它指向的格子（或整個 struct）
 function drawArrows(){
+  if(COURSE==="py"){pyArrows($("mem"));return}   // Python：名字 → 物件的箭頭
   const box=$("mem");const old=box.querySelector("svg.arrows");if(old)old.remove();
   const srcs=[...box.querySelectorAll("[data-p]")];if(!srcs.length||!box.offsetParent)return;
   const B=box.getBoundingClientRect(),ox=box.scrollLeft-B.left,oy=box.scrollTop-B.top;
@@ -524,9 +548,9 @@ function renderTT(){
 
 function wsVis(t){return esc(t).replace(/ /g,'<span class="wsv">␣</span>').replace(/\n/g,'<span class="wsv">↵</span>\n')}
 function renderIO(s,flash){
-  const L=ST.L;const usesCin=/\bcin\b/.test(ST.code);
+  const L=ST.L;const usesCin=(COURSE==="py"?/\binput\s*\(/:/\bcin\b/).test(ST.code);
   if(L.tests&&!ST.ran){$("inwrap").innerHTML=`<p class="noinput">${T("執行之後，這裡會顯示那一筆測資的輸入。","After you run a test, its input is shown here.")}</p>`}
-  else if(L.input===null&&!usesCin&&!ST.input){$("inwrap").innerHTML=`<p class="noinput">${T("這個程式沒有用到 cin，不需要輸入。","This program does not use cin, so it needs no input.")}</p>`}
+  else if(L.input===null&&!usesCin&&!ST.input){$("inwrap").innerHTML=`<p class="noinput">${COURSE==="py"?T("這個程式沒有用到 input()，不需要輸入。","This program does not use input(), so it needs no input."):T("這個程式沒有用到 cin，不需要輸入。","This program does not use cin, so it needs no input.")}</p>`}
   else{
     if(!$("stdin")){
       $("inwrap").innerHTML=`<textarea class="stdin" id="stdin" rows="2" spellcheck="false" aria-label="${T("程式的輸入","Program input")}"></textarea><div class="hint">${T("可以直接修改，改完會從頭執行。","You can change it. The program will run again from the start.")}</div><div class="buf" id="buf"></div><div id="failtag"></div>`;
@@ -656,6 +680,6 @@ function setLangBtn(){$("langBtn").textContent=LANG==="en"?"中文":"EN";$("lang
 $("langBtn").onclick=()=>{LANG=LANG==="en"?"zh":"en";store.set("ckviz-lang",LANG);applyLang();setLangBtn();
   setNavHidden(document.querySelector(".app").classList.contains("nav-hidden"));renderNav();openLesson(ST.L.id)};
 setLangBtn();
-openLesson(store.get("ckviz-last","0-1"));
+openLesson(store.get(SK+"last","0-1"));
 setMode("cpp");
 
