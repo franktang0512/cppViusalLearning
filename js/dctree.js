@@ -31,7 +31,7 @@ function renderDC(L,s){
   const n=any?any.len:0;
   const segs=[...calls.values()].filter(c=>c.hi>=c.lo&&c.lo>=0&&c.hi<n);
   box.hidden=false;
-  if(!n||!segs.length){box.innerHTML=`<div class="gtitle">拆解圖</div><div class="glegend dclegend">程式還沒開始拆。</div>`;return}
+  if(!n||!segs.length){box.innerHTML=(ENG()?`<div class="gtitle">Split diagram</div><div class="glegend dclegend">The program has not started splitting yet.</div>`:`<div class="gtitle">拆解圖</div><div class="glegend dclegend">程式還沒開始拆。</div>`);return}
   // ---- 位置
   const W=360,cw=Math.min(34,(W-24)/n),x0=(W-cw*n)/2,ch=24,gap=28,levels=Math.max(...segs.map(c=>c.lv))+1,H=levels*(ch+gap)-gap+42;
   const X=i=>x0+i*cw,Y=lv=>6+lv*(ch+gap);
@@ -60,10 +60,12 @@ function renderDC(L,s){
   // 陣列的位置：最上面標 [0] [1] ……
   let idx="";for(let i=0;i<n;i++)idx+=`<text class="di" x="${X(i)+cw/2}" y="${H-4}">[${i}]</text>`;
   const now=segs.find(c=>st(c)==="cur");
-  const leg=[now?`<b>正在處理</b> ${esc(D.fn)}(${esc(D.lo)} = ${now.lo}, ${esc(D.hi)} = ${now.hi})：粗框那一段`:"粗框＝正在處理的那一段",
-    "橘色虛框＝拆好了，等下一層做完回來","淡的虛線＝還沒輪到","底色＝這一段做完了（數字是它做完那一刻的樣子）"];
-  if(segs.some(c=>c.ret!==null))leg.push("→ 後面是這一段回傳的答案");
-  box.innerHTML=`<div class="gtitle">拆解圖<span>每一列是一層；同一直行就是同一格 ${esc(D.arr)}[i]</span></div>
+  const leg=[now?(ENG()?`<b>Working on</b> ${esc(D.fn)}(${esc(D.lo)} = ${now.lo}, ${esc(D.hi)} = ${now.hi}): the part with the thick border`:`<b>正在處理</b> ${esc(D.fn)}(${esc(D.lo)} = ${now.lo}, ${esc(D.hi)} = ${now.hi})：粗框那一段`):(ENG()?"thick border = the part being worked on":"粗框＝正在處理的那一段"),
+    (ENG()?"orange dashed border = already split, waiting for the next level to finish and come back":"橘色虛框＝拆好了，等下一層做完回來"),(ENG()?"light dashed line = not its turn yet":"淡的虛線＝還沒輪到"),(ENG()?"shaded = this part is done (the numbers show how it looked when it finished)":"底色＝這一段做完了（數字是它做完那一刻的樣子）")];
+  if(segs.some(c=>c.ret!==null))leg.push((ENG()?"after → is the answer this part returns":"→ 後面是這一段回傳的答案"));
+  box.innerHTML=(ENG()?`<div class="gtitle">Split diagram<span>Each row is one level; each column is the same cell ${esc(D.arr)}[i]</span></div>
+    <svg class="graph dc" viewBox="0 0 ${W} ${H}" role="img" aria-label="divide-and-conquer split diagram">${svg}${idx}</svg>
+    <div class="glegend dclegend">${leg.map(x=>`<span>${x}</span>`).join("")}</div>`:`<div class="gtitle">拆解圖<span>每一列是一層；同一直行就是同一格 ${esc(D.arr)}[i]</span></div>
     <svg class="graph dc" viewBox="0 0 ${W} ${H}" role="img" aria-label="分而治之的拆解圖">${svg}${idx}</svg>
-    <div class="glegend dclegend">${leg.map(x=>`<span>${x}</span>`).join("")}</div>`;
+    <div class="glegend dclegend">${leg.map(x=>`<span>${x}</span>`).join("")}</div>`);
 }

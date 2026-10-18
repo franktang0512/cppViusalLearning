@@ -19,7 +19,7 @@ CHAPTERS.push({part:"進階程式設計",id:9,title:"遞迴",lessons:[
   goal:"這支程式故意少寫了終止條件。fact 會一直呼叫自己：fact(3) → fact(2) → fact(1) → fact(0) → fact(-1)……永遠停不下來。每一層都要佔記憶體，真正的 C++ 會把呼叫堆疊用完而當掉，叫做 stack overflow（堆疊溢位）。這個網頁會在 60 層的時候先幫你停下來。",
   code:FN(["int fact(int n) {","    return n * fact(n - 1);  // 少了終止條件！","}"],"cout << fact(3) << endl;"),input:null,
   predict:"這支程式會印出 6 嗎？",
-  ask:"把終止條件加回去（參考 10-2）。如果條件寫成 if (n == 1)，呼叫 fact(0) 會怎樣？"},
+  ask:"把終止條件加回去（參考 9-2）。如果條件寫成 if (n == 1)，呼叫 fact(0) 會怎樣？"},
  {id:"9-5",title:"遞迴樹與重複計算",isNew:"費氏數列：同一個值被算很多次",
   goal:"費氏數列：fib(0) = 0、fib(1) = 1，之後每一項是前兩項相加：fib(n) = fib(n - 1) + fib(n - 2)。\n寫成遞迴很直接，但每一層會分成兩個呼叫，像一棵樹一樣展開，同一個 fib(2)、fib(1) 會被重複算很多次。全域變數 calls 記錄 fib 總共被呼叫了幾次。",
   code:FN(["int calls = 0;  // fib 總共被呼叫了幾次","","int fib(int n) {","    calls = calls + 1;","    if (n <= 1) {","        return n;","    }","    return fib(n - 1) + fib(n - 2);","}"],"cout << fib(5) << endl;","cout << \"fib 被呼叫了 \" << calls << \" 次\" << endl;"),input:null,

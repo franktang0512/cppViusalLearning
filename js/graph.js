@@ -91,24 +91,26 @@ function renderGraph(L,s){
     if(ufOn){const b=boss(k);if(b!==null)cls+=" grp k"+(b%6)}else if(comp){const c=arrAt(G.comp,k);if(c)cls+=" grp k"+((c-1)%6)}else if(vis)cls+=" vis";
     if(inQ.has(k))cls+=" inq";if(onStack.has(k))cls+=" stk";if(k===cur)cls+=" cur";if(k===nb&&k!==cur)cls+=" nb";if(justVis(k))cls+=" pop";
     svg+=`<g class="${cls}"><circle cx="${x}" cy="${y}" r="${R}"/><text x="${x}" y="${y+5}">${k}</text>`;
-    if(G.dist){const d=arrAt(G.dist,k);if(d!==null&&d>=0)svg+=`<text class="gd" x="${x}" y="${y+R+14}">${G.distLabel||"d"}=${d>=1e9?"∞":d}</text>`}
+    if(G.dist){const d=arrAt(G.dist,k);if(d!==null&&d>=0)svg+=`<text class="gd" x="${x}" y="${y+R+14}">${(ENG()&&G.distLabelEn)||G.distLabel||"d"}=${d>=1e9?"∞":d}</text>`}
     svg+=`</g>`;
   }
   // ---- 說明
   const leg=[];
-  if(cur!==null)leg.push(`<span class="gl cur"></span>現在的點 ${G.cur} = ${cur}`);
-  if(nb!==null&&cur!==null)leg.push(`<span class="gl nbl"></span>正在看的鄰居 ${G.nb} = ${nb}`);
-  if(onStack.size)leg.push(`<span class="gl stk"></span>還在遞迴中，等著回來`);
-  if(G.queue&&inQ.size)leg.push(`<span class="gl inq"></span>在 ${typeof G.queue==="string"?G.queue:G.queue.arr} 裡等著`);
-  if(G.visit&&!comp)leg.push(`<span class="gl vis"></span>${G.visitNonNeg?`${G.visit}[ ] 不是 -1`:`${G.visit}[ ] 是 true`}（走過了）`);
-  if(comp)leg.push(`同一個顏色＝同一群（${G.comp}[ ] 一樣）`);
-  if(ufOn)leg.push(`同一個顏色＝同一群（老大一樣）`+(G.ufLinks?`；箭頭 v → ${G.uf}[v]`:""));
-  if(src&&src.arr&&eCur!==null)leg.push(`<span class="gl nbl"></span>正在看的邊 ${src.arr}[${eCur}]`);
-  if(src&&src.arr&&src.pick&&edges.some(e=>picked(e[4])))leg.push(`<span class="gl tre"></span>選進來的邊`);
-  if(tree.size)leg.push(`<span class="gl tre"></span>parent 留下的邊`);
-  if(G.weight)leg.push(`線上的數字＝這條邊的長度`);
-  if(edges.some(e=>e[2]))leg.push(`虛線＝程式還沒把這條邊存起來`);
-  box.innerHTML=`<div class="gtitle">${G.title||"圖"+(G.directed?"（有向）":"（無向）")}<span>${G.ufLinks?"":edges.filter(e=>!e[2]).length+" 條邊"}</span></div>
+  if(cur!==null)leg.push((ENG()?`<span class="gl cur"></span>current point ${G.cur} = ${cur}`:`<span class="gl cur"></span>現在的點 ${G.cur} = ${cur}`));
+  if(nb!==null&&cur!==null)leg.push((ENG()?`<span class="gl nbl"></span>neighbor being checked ${G.nb} = ${nb}`:`<span class="gl nbl"></span>正在看的鄰居 ${G.nb} = ${nb}`));
+  if(onStack.size)leg.push((ENG()?`<span class="gl stk"></span>still in the recursion, waiting to come back`:`<span class="gl stk"></span>還在遞迴中，等著回來`));
+  if(G.queue&&inQ.size)leg.push((ENG()?`<span class="gl inq"></span>waiting in ${typeof G.queue==="string"?G.queue:G.queue.arr}`:`<span class="gl inq"></span>在 ${typeof G.queue==="string"?G.queue:G.queue.arr} 裡等著`));
+  if(G.visit&&!comp)leg.push((ENG()?`<span class="gl vis"></span>${G.visitNonNeg?`${G.visit}[ ] is not -1`:`${G.visit}[ ] is true`} (visited)`:`<span class="gl vis"></span>${G.visitNonNeg?`${G.visit}[ ] 不是 -1`:`${G.visit}[ ] 是 true`}（走過了）`));
+  if(comp)leg.push((ENG()?`same color = same group (same ${G.comp}[ ])`:`同一個顏色＝同一群（${G.comp}[ ] 一樣）`));
+  if(ufOn)leg.push((ENG()?`same color = same group (same leader)`:`同一個顏色＝同一群（老大一樣）`)+(G.ufLinks?(ENG()?`; arrow v → ${G.uf}[v]`:`；箭頭 v → ${G.uf}[v]`):""));
+  if(src&&src.arr&&eCur!==null)leg.push((ENG()?`<span class="gl nbl"></span>edge being checked ${src.arr}[${eCur}]`:`<span class="gl nbl"></span>正在看的邊 ${src.arr}[${eCur}]`));
+  if(src&&src.arr&&src.pick&&edges.some(e=>picked(e[4])))leg.push((ENG()?`<span class="gl tre"></span>edges chosen`:`<span class="gl tre"></span>選進來的邊`));
+  if(tree.size)leg.push((ENG()?`<span class="gl tre"></span>edges left by parent`:`<span class="gl tre"></span>parent 留下的邊`));
+  if(G.weight)leg.push((ENG()?`the number on a line = the length of that edge`:`線上的數字＝這條邊的長度`));
+  if(edges.some(e=>e[2]))leg.push((ENG()?`dashed line = the program has not stored this edge yet`:`虛線＝程式還沒把這條邊存起來`));
+  box.innerHTML=(ENG()?`<div class="gtitle">${G.titleEn||G.title||"Graph"+(G.directed?" (directed)":" (undirected)")}<span>${G.ufLinks?"":edges.filter(e=>!e[2]).length+" edges"}</span></div>
+    <svg class="graph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graph: ${n} points"><defs><marker id="garr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${svg}</svg>
+    <div class="glegend">${leg.map(x=>`<span>${x}</span>`).join("")}</div>`:`<div class="gtitle">${G.title||"圖"+(G.directed?"（有向）":"（無向）")}<span>${G.ufLinks?"":edges.filter(e=>!e[2]).length+" 條邊"}</span></div>
     <svg class="graph" viewBox="0 0 ${W} ${H}" role="img" aria-label="圖：${n} 個點"><defs><marker id="garr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${svg}</svg>
-    <div class="glegend">${leg.map(x=>`<span>${x}</span>`).join("")}</div>`;
+    <div class="glegend">${leg.map(x=>`<span>${x}</span>`).join("")}</div>`);
 }

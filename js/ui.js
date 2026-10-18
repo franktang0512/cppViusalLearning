@@ -270,9 +270,9 @@ function renderMem(s,flash){
       let cells="";
       for(let f=0;f<R*C;f++){const r=Math.floor(f/C),c=f%C;
         cells+=`<div class="cell band${r%2}${c===0?" rs":""}${f===R*C-1?" last":""}"><div class="cv${cls(f)}" data-k="${v.id}:${f}">${esc(fmtVal(v.type,v.values[f]))}</div><div class="ci">[${r}][${c}]</div><div class="mk">${c===0?"0x"+(v.addr+f*SIZE[v.type]).toString(16):""}</div></div>`}
-      strip=`<div class="flatcap">在記憶體裡，其實是<b>一列接著一列</b>排成一長條（每格 ${SIZE[v.type]} bytes）：</div><div class="arr flat">${cells}</div>`;
+      strip=(ENG()?`<div class="flatcap">In memory, it is really <b>one row after another</b> in one long line (${SIZE[v.type]} bytes per cell):</div><div class="arr flat">${cells}</div>`:`<div class="flatcap">在記憶體裡，其實是<b>一列接著一列</b>排成一長條（每格 ${SIZE[v.type]} bytes）：</div><div class="arr flat">${cells}</div>`);
     }
-    return`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${R}][${C}]・${R} 列 × ${C} 行</span></div></div>${t}${strip}</div>`;
+    return(ENG()?`<div><div class="arr-head"><div class="addr" title="The address is only an example. A real computer may use a different one each time.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${R}][${C}]・${R} rows × ${C} columns</span></div></div>${t}${strip}</div>`:`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${R}][${C}]・${R} 列 × ${C} 行</span></div></div>${t}${strip}</div>`);
   }
   // new 出來的空間：從沒有人（heap 裡）指著的節點開始，沿著指標欄位一路排下去
   function heapOrder(hs){
@@ -308,15 +308,15 @@ function renderMem(s,flash){
     const deep=frames[frames.length-1].key;
     const who=v=>[...all.filter(x=>x.type==="ptr"&&!x.heap&&!x.isArr&&x.init[0]&&x.values[0]&&x.values[0].id===v.id)
         .map(x=>`<span class="${x.scope!=="main"&&x.scope!=="global"&&x.scope!==deep?"old":""}">${esc(x.name)}</span>`),
-      ...all.filter(x=>CONTS.includes(x.type)&&!x.isArr&&x.elem==="ptr"&&x.values[0].some(q=>q&&q.id===v.id)).map(x=>`<span class="tin">在 ${esc(x.name)} 裡</span>`)];  // 指著這個節點的指標變數
+      ...all.filter(x=>CONTS.includes(x.type)&&!x.isArr&&x.elem==="ptr"&&x.values[0].some(q=>q&&q.id===v.id)).map(x=>(ENG()?`<span class="tin">in ${esc(x.name)}</span>`:`<span class="tin">在 ${esc(x.name)} 裡</span>`))];  // 指著這個節點的指標變數
     const DX=60,DY=76,W=(col-1)*DX+132,H=maxD*DY+66;
     const nodes=hs.map(v=>{const q=pos.get(v.id),sd=v.sdef;
       const cells=sd.fields.map((f,k)=>{const key=v.id+":"+k,fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",val=v.values[k],isP=f.type==="ptr";
         const txt=!v.init[k]?"?":isP?(val===null?"∅":"●"):fmtVal(f.type,val);
         return`<div class="cell${k===sd.fields.length-1?" last":""}"><div class="cv${fl}${r}${v.init[k]?"":" g"}${isP?" pv":""}" data-k="${key}"${isP&&v.init[k]?pAttr(val):""}>${esc(txt)}</div><div class="ci">${esc(f.name)}</div></div>`}).join("");
       const w=who(v);
-      return`<div class="tnode" style="left:${q.x*DX}px;top:${q.d*DY}px"><div class="twho">${w.join("、")||"&nbsp;"}</div><div class="hnode" data-sk="${v.id}:0" title="${esc(v.name)}・0x${v.addr.toString(16)}"><div class="sbox">${cells}</div></div></div>`}).join("");
-    return`<div class="tlegend">● 指向一個節點，∅ 是 nullptr（沒有孩子）。節點上面的名字是正在指著它的指標。</div><div class="htree" style="width:${W}px;height:${H}px">${nodes}</div>`;
+      return`<div class="tnode" style="left:${q.x*DX}px;top:${q.d*DY}px"><div class="twho">${w.join((ENG()?", ":"、"))||"&nbsp;"}</div><div class="hnode" data-sk="${v.id}:0" title="${esc(v.name)}・0x${v.addr.toString(16)}"><div class="sbox">${cells}</div></div></div>`}).join("");
+    return(ENG()?`<div class="tlegend">● points to a node, ∅ is nullptr (no child). The name above a node is the pointer that points to it now.</div><div class="htree" style="width:${W}px;height:${H}px">${nodes}</div>`:`<div class="tlegend">● 指向一個節點，∅ 是 nullptr（沒有孩子）。節點上面的名字是正在指著它的指標。</div><div class="htree" style="width:${W}px;height:${H}px">${nodes}</div>`);
   }
   // struct：一個元素是一排有名字的格子；struct 陣列一個元素一排
   function structHTML(v){
@@ -325,25 +325,25 @@ function renderMem(s,flash){
     const row=(e,names)=>sd.fields.map((f,k)=>{
       const slot=e*F+k,key=v.id+":"+slot,fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",val=v.values[slot];
       return`<div class="cell${k===F-1?" last":""}"><div class="cv${fl}${r}${v.init[slot]?"":" g"}${f.type==="ptr"?" pv":""}" data-k="${key}"${f.type==="ptr"&&v.init[slot]?pAttr(val):""}>${esc(fmtVal(f.type,val))}</div>${names?`<div class="ci">.${esc(f.name)}</div>`:""}</div>`}).join("");
-    const head=`<div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${esc(sd.name)}${v.isArr?`[${v.len}]`:""}・${v.isArr?"每個 ":""}${sd.size} bytes</span></div></div>`;
-    if(v.heap)return`<div class="hnode" data-sk="${v.id}:0"><div class="hhead"><span class="nm">${esc(v.name)}</span> <span class="addr" title="位址只是示意">0x${v.addr.toString(16)}</span></div><div class="sbox">${row(0,true)}</div></div>`;
+    const head=(ENG()?`<div class="arr-head"><div class="addr" title="The address is only an example. A real computer may use a different one each time.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${esc(sd.name)}${v.isArr?`[${v.len}]`:""}・${v.isArr?"each ":""}${sd.size} bytes</span></div></div>`:`<div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${esc(sd.name)}${v.isArr?`[${v.len}]`:""}・${v.isArr?"每個 ":""}${sd.size} bytes</span></div></div>`);
+    if(v.heap)return(ENG()?`<div class="hnode" data-sk="${v.id}:0"><div class="hhead"><span class="nm">${esc(v.name)}</span> <span class="addr" title="The address is only an example.">0x${v.addr.toString(16)}</span></div><div class="sbox">${row(0,true)}</div></div>`:`<div class="hnode" data-sk="${v.id}:0"><div class="hhead"><span class="nm">${esc(v.name)}</span> <span class="addr" title="位址只是示意">0x${v.addr.toString(16)}</span></div><div class="sbox">${row(0,true)}</div></div>`);
     if(!v.isArr)return`<div>${head}<div class="sbox" data-sk="${v.id}:0">${row(0,true)}</div></div>`;
     const oob=s.oob&&s.oob.id===v.id?s.oob.i:null;
     let rows="";
     for(let e=0;e<v.len;e++)rows+=`<div class="srow"><div class="sidx">[${e}]<b>${markAt(e)}</b></div><div class="sbox" data-sk="${v.id}:${e}">${row(e,e===0)}</div></div>`;
-    if(oob!==null)rows+=`<div class="srow"><div class="sidx oob">[${oob}]<b>${markAt(oob)}</b></div><div class="sbox oob">越界</div></div>`;
+    if(oob!==null)rows+=(ENG()?`<div class="srow"><div class="sidx oob">[${oob}]<b>${markAt(oob)}</b></div><div class="sbox oob">out of range</div></div>`:`<div class="srow"><div class="sidx oob">[${oob}]<b>${markAt(oob)}</b></div><div class="sbox oob">越界</div></div>`);
     return`<div>${head}${rows}</div>`;
   }
-  const names=v=>esc(v.name)+refs.filter(r=>r.tid===v.id).map(r=>`<span class="alias">、${esc(r.name)}${r.frame!==v.scope?`<small>（${esc((frames.find(f=>f.key===r.frame)||{}).label||"")}）</small>`:""}</span>`).join("");
+  const names=v=>esc(v.name)+refs.filter(r=>r.tid===v.id).map(r=>(ENG()?`<span class="alias">, ${esc(r.name)}${r.frame!==v.scope?`<small> (${esc((frames.find(f=>f.key===r.frame)||{}).label||"")})</small>`:""}</span>`:`<span class="alias">、${esc(r.name)}${r.frame!==v.scope?`<small>（${esc((frames.find(f=>f.key===r.frame)||{}).label||"")}）</small>`:""}</span>`)).join("");
   const hasH=all.some(v=>v.scope==="heap");
   // 指標存的位址 → 畫箭頭用（data-p 指到 data-k / data-sk）
   const pAttr=pt=>pt&&pt.id>=0&&all.some(x=>x.id===pt.id)?` data-p="${pt.id}:${pt.i}"`:"";
   const ptrTxt=v=>(v.psdef?v.psdef.name:TNAME[v.elem])+"*".repeat(v.plv||1);
   for(const grp of [...(hasG?["global"]:[]),...frames.map(f=>f.key),...(hasH?["heap"]:[])]){
     const vs=all.filter(v=>v.scope===grp),rs=refs.filter(r=>r.frame===grp),fi=frames.findIndex(f=>f.key===grp);
-    if(grp==="heap"){h+=`<div class="grp heap">heap：用 new 借來的空間（沒有名字，只能靠指標找到）</div>`}
+    if(grp==="heap"){h+=(ENG()?`<div class="grp heap">heap: memory borrowed with new (no name; you can only find it with a pointer)</div>`:`<div class="grp heap">heap：用 new 借來的空間（沒有名字，只能靠指標找到）</div>`)}
     else if(multi)h+=`<div class="grp${fi>0?" fn":""}">${grp==="global"?T("全域變數（main 外面）","Global variables (outside main)"):fi===0?T("main 的變數","Variables of main"):T(`${esc(frames[fi].label)}() 的變數・呼叫堆疊第 ${fi+1} 層${fi===frames.length-1?"（正在執行）":""}`,`Variables of ${esc(frames[fi].label)}() · call stack level ${fi+1}${fi===frames.length-1?" (running)":""}`)}</div>`;
-    for(const r of rs)h+=`<div class="refrow"><code>${esc(r.name)}</code> ${r.arr?"是陣列參數：":r.alias?"是別名（參考）：":"是傳參考（&amp;）："}就是 ${esc(r.targetFrame)} 的 <code>${esc(r.target)}</code>，${r.arr?"同一塊記憶體，沒有複製":"不是另外一個格子"}</div>`;
+    for(const r of rs)h+=(ENG()?`<div class="refrow"><code>${esc(r.name)}</code> ${r.arr?"is an array parameter: ":r.alias?"is another name (a reference): ":"is pass by reference (&amp;): "}it is <code>${esc(r.target)}</code> of ${esc(r.targetFrame)}, ${r.arr?"the same memory, not a copy":"not a separate cell"}</div>`:`<div class="refrow"><code>${esc(r.name)}</code> ${r.arr?"是陣列參數：":r.alias?"是別名（參考）：":"是傳參考（&amp;）："}就是 ${esc(r.targetFrame)} 的 <code>${esc(r.target)}</code>，${r.arr?"同一塊記憶體，沒有複製":"不是另外一個格子"}</div>`);
     if(!vs.length){if(!rs.length)h+=`<div class="empty">${T("（沒有）","(none)")}</div>`;continue}
     if(grp==="heap"){const tr=treeHTML(vs);h+=tr?`<div class="heaprow treerow">${tr}</div>`:`<div class="heaprow">${heapOrder(vs).map(heapHTML).join("")}</div>`;continue}
     for(const v of vs){
@@ -359,23 +359,23 @@ function renderMem(s,flash){
         if(v.elem==="vector"){
           // 二維 vector：一列畫一行，每一列可以不一樣長
           body=a.length?a.map((row,r)=>{const rk=base+r,rf=flash&&(all0||ch.has(rk))?" flash":"";
-            const cells=row.length?row.map((x,c)=>cellHtml(x,rk+"_"+c,null,c===row.length-1,`[${c}]`)).join(""):`<div class="cell last"><div class="cv${rf}" style="min-width:4em">空的</div><div class="ci">&nbsp;</div></div>`;
-            return`<div class="vrow"><span class="vrl${rf}">${esc(v.name)}[${r}]</span><div class="arr">${cells}</div><span class="vrn">${row.length} 個</span></div>`}).join(""):`<div class="arr"><div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div></div>`;
+            const cells=row.length?row.map((x,c)=>cellHtml(x,rk+"_"+c,null,c===row.length-1,`[${c}]`)).join(""):(ENG()?`<div class="cell last"><div class="cv${rf}" style="min-width:4em">empty</div><div class="ci">&nbsp;</div></div>`:`<div class="cell last"><div class="cv${rf}" style="min-width:4em">空的</div><div class="ci">&nbsp;</div></div>`);
+            return(ENG()?`<div class="vrow"><span class="vrl${rf}">${esc(v.name)}[${r}]</span><div class="arr">${cells}</div><span class="vrn">${row.length} items</span></div>`:`<div class="vrow"><span class="vrl${rf}">${esc(v.name)}[${r}]</span><div class="arr">${cells}</div><span class="vrn">${row.length} 個</span></div>`)}).join(""):(ENG()?`<div class="arr"><div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">empty</div><div class="ci">&nbsp;</div></div></div>`:`<div class="arr"><div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div></div>`);
         }else{
           const lab=i=>v.type==="vector"?`[${i}]`:v.type==="deque"?[i===0?"front":"",i===a.length-1?"back":""].filter(Boolean).join(" / ")||`[${i}]`:[i===0?"front":"",i===a.length-1?"back":""].filter(Boolean).join(" / ")||"&nbsp;";
           const cells=a.map((x,i)=>cellHtml(x,base+i,i,i===a.length-1,lab(i))+(v.type==="list"&&i<a.length-1?`<div class="lnk">→</div>`:"")).join("");
-          body=`<div class="arr${v.type==="list"?" list":""}">${a.length?cells:`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`}</div>`;
+          body=`<div class="arr${v.type==="list"?" list":""}">${a.length?cells:(ENG()?`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">empty</div><div class="ci">&nbsp;</div></div>`:`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`)}</div>`;
         }
-        const note=v.type==="vector"?(v.elem==="vector"?`${a.length} 列`:`size = ${a.length}`):v.type==="deque"?`${a.length} 個・兩頭都能進出`:`${a.length} 個・一個接一個`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${v.type}&lt;${tn}&gt;・${note}</span></div></div>${body}</div>`;
+        const note=v.type==="vector"?(v.elem==="vector"?(ENG()?`${a.length} rows`:`${a.length} 列`):`size = ${a.length}`):v.type==="deque"?(ENG()?`${a.length} items・both ends can add and remove`:`${a.length} 個・兩頭都能進出`):(ENG()?`${a.length} items・linked one after another`:`${a.length} 個・一個接一個`);
+        h+=(ENG()?`<div><div class="arr-head"><div class="addr" title="The address is only an example.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${v.type}&lt;${tn}&gt;・${note}</span></div></div>${body}</div>`:`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${v.type}&lt;${tn}&gt;・${note}</span></div></div>${body}</div>`);
         continue;
       }
       if(v.type==="priority_queue"&&!v.isArr){
         const a=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0"),mn=v.elem2==="min";
         let cells=a.map((x,i)=>{const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
           return`<div class="cell${i===a.length-1?" last":""}"><div class="cv${fl}${r}">${esc(cellTxt(v.elem,x))}</div><div class="ci">&nbsp;</div><div class="mk">${i===0?"top":""}</div></div>`}).join("");
-        if(!a.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">priority_queue&lt;${elN(v.elem,v)}&gt;・${a.length} 個・最${mn?"小":"大"}的在最前面</span></div></div><div class="arr">${cells}</div></div>`;
+        if(!a.length)cells=(ENG()?`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">empty</div><div class="ci">&nbsp;</div></div>`:`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`);
+        h+=(ENG()?`<div><div class="arr-head"><div class="addr" title="The address is only an example.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">priority_queue&lt;${elN(v.elem,v)}&gt;・${a.length} items・the ${mn?"smallest":"largest"} is first</span></div></div><div class="arr">${cells}</div></div>`:`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">priority_queue&lt;${elN(v.elem,v)}&gt;・${a.length} 個・最${mn?"小":"大"}的在最前面</span></div></div><div class="arr">${cells}</div></div>`);
         continue;
       }
       if(v.type==="queue"&&!v.isArr){
@@ -383,8 +383,8 @@ function renderMem(s,flash){
         let cells=a.map((x,i)=>{const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
           const lb=[i===0?"front":"",i===a.length-1?"back":""].filter(Boolean).join(" / ");
           return`<div class="cell${i===a.length-1?" last":""}"><div class="cv${fl}${r}">${esc(cellTxt(v.elem,x))}</div><div class="ci">&nbsp;</div><div class="mk">${lb}</div></div>`}).join("");
-        if(!a.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">queue&lt;${elN(v.elem,v)}&gt;・${a.length} 個・← 從左邊出去，從右邊進來 ←</span></div></div><div class="arr">${cells}</div></div>`;
+        if(!a.length)cells=(ENG()?`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">empty</div><div class="ci">&nbsp;</div></div>`:`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空的</div><div class="ci">&nbsp;</div></div>`);
+        h+=(ENG()?`<div><div class="arr-head"><div class="addr" title="The address is only an example.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">queue&lt;${elN(v.elem,v)}&gt;・${a.length} items・← leave from the left, come in from the right ←</span></div></div><div class="arr">${cells}</div></div>`:`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">queue&lt;${elN(v.elem,v)}&gt;・${a.length} 個・← 從左邊出去，從右邊進來 ←</span></div></div><div class="arr">${cells}</div></div>`);
         continue;
       }
       if(v.type==="stack"&&!v.isArr){
@@ -392,9 +392,9 @@ function renderMem(s,flash){
         const a=v.values[0],all0=ch.has(v.id+":0"),rd0=rd.has(v.id+":0");
         let cells="";
         for(let i=a.length-1;i>=0;i--){const k=v.id+":k"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
-          cells+=`<div class="srow"><span class="stag">${i===a.length-1?"top →":""}</span><div class="cv${fl}${r}">${esc(cellTxt(v.elem,a[i]))}</div><span class="stag">${i===0&&a.length>1?"← 底":""}</span></div>`}
-        if(!a.length)cells=`<div class="srow"><span class="stag"></span><div class="cv empty${flash&&all0?" flash":""}">空的</div><span class="stag"></span></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">stack&lt;${elN(v.elem,v)}&gt;・${a.length} 個</span></div></div><div class="vstack">${cells}<div class="sbase"></div></div></div>`;
+          cells+=`<div class="srow"><span class="stag">${i===a.length-1?"top →":""}</span><div class="cv${fl}${r}">${esc(cellTxt(v.elem,a[i]))}</div><span class="stag">${i===0&&a.length>1?(ENG()?"← bottom":"← 底"):""}</span></div>`}
+        if(!a.length)cells=(ENG()?`<div class="srow"><span class="stag"></span><div class="cv empty${flash&&all0?" flash":""}">empty</div><span class="stag"></span></div>`:`<div class="srow"><span class="stag"></span><div class="cv empty${flash&&all0?" flash":""}">空的</div><span class="stag"></span></div>`);
+        h+=(ENG()?`<div><div class="arr-head"><div class="addr" title="The address is only an example.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">stack&lt;${elN(v.elem,v)}&gt;・${a.length} items</span></div></div><div class="vstack">${cells}<div class="sbase"></div></div></div>`:`<div><div class="arr-head"><div class="addr" title="位址只是示意">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">stack&lt;${elN(v.elem,v)}&gt;・${a.length} 個</span></div></div><div class="vstack">${cells}<div class="sbase"></div></div></div>`);
         continue;
       }
       if(v.type==="string"&&!v.isArr){
@@ -403,13 +403,13 @@ function renderMem(s,flash){
         let cells="";
         for(let i=0;i<str.length&&i<60;i++){const k=v.id+":c"+i,fl=flash&&(all0||ch.has(k))?" flash":"",r=rd0||rd.has(k)?" rd":"";
           cells+=`<div class="cell${i===str.length-1?" last":""}"><div class="cv${fl}${r}">${esc(charLit(str.charCodeAt(i)))}</div><div class="ci">[${i}]</div><div class="mk">${markAt(i)}</div></div>`}
-        if(!str.length)cells=`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空字串</div><div class="ci">&nbsp;</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${esc(v.name)}</span> <span class="ty">string・長度 ${str.length}</span></div></div><div class="arr">${cells}</div></div>`;
+        if(!str.length)cells=(ENG()?`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">empty string</div><div class="ci">&nbsp;</div></div>`:`<div class="cell last"><div class="cv${flash&&all0?" flash":""}" style="min-width:5em">空字串</div><div class="ci">&nbsp;</div></div>`);
+        h+=(ENG()?`<div><div class="arr-head"><div class="addr" title="The address is only an example. A real computer may use a different one each time.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${esc(v.name)}</span> <span class="ty">string・length ${str.length}</span></div></div><div class="arr">${cells}</div></div>`:`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${esc(v.name)}</span> <span class="ty">string・長度 ${str.length}</span></div></div><div class="arr">${cells}</div></div>`);
         continue;
       }
       if(!v.isArr){
         const key=v.id+":0",fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"",g=!v.init[0];
-        const pt=v.type==="ptr"?v.values[0]:undefined,pTarget=pt===undefined?"":pt===null?"不指向任何東西":pt.id<0?"亂指（野指標）":(()=>{const t=all.find(x=>x.id===pt.id);return t?`指向 ${t.dims?`${t.name}[${Math.floor(pt.i/t.dims[1])}][${pt.i%t.dims[1]}]`:t.isArr?`${t.name}[${pt.i}]`:t.name}`:"指向已收回的空間（懸空指標）"})();
+        const pt=v.type==="ptr"?v.values[0]:undefined,pTarget=pt===undefined?"":pt===null?(ENG()?"points to nothing":"不指向任何東西"):pt.id<0?(ENG()?"points anywhere (wild pointer)":"亂指（野指標）"):(()=>{const t=all.find(x=>x.id===pt.id);return t?(ENG()?`points to ${t.dims?`${t.name}[${Math.floor(pt.i/t.dims[1])}][${pt.i%t.dims[1]}]`:t.isArr?`${t.name}[${pt.i}]`:t.name}`:`指向 ${t.dims?`${t.name}[${Math.floor(pt.i/t.dims[1])}][${pt.i%t.dims[1]}]`:t.isArr?`${t.name}[${pt.i}]`:t.name}`):(ENG()?"points to freed memory (dangling pointer)":"指向已收回的空間（懸空指標）")})();
         const extra=v.type==="char"?` ・ ASCII ${v.values[0]}`:v.type==="string"?T(` ・ 長度 ${v.values[0].length}`,` · length ${v.values[0].length}`):v.type==="ptr"&&v.init[0]?` ・ <b>${esc(pTarget)}</b>`:"";
         h+=`<div class="var"><div class="addr" title="${T("位址只是示意，真實電腦每次執行都可能不同","The address is only an example. A real computer may use a different one each time.")}">0x${v.addr.toString(16)}</div>
           <div class="box${fl}${r}" data-k="${key}"${v.type==="ptr"?pAttr(pt):""} style="--n:${Math.min(SIZE[v.type],8)}">${"<span></span>".repeat(Math.min(SIZE[v.type],8))}<div class="val${g?" g":""}">${esc(fmtVal(v.type,v.values[0]))}</div></div>
@@ -424,9 +424,9 @@ function renderMem(s,flash){
           const key=v.id+":"+i,fl=flash&&ch.has(key)?" flash":"",r=rd.has(key)?" rd":"";
           cells+=`<div class="cell${i===show-1&&oob===null?" last":""}"><div class="cv${fl}${r}${v.init[i]?"":" g"}" data-k="${key}">${esc(fmtVal(v.type,v.values[i]))}</div><div class="ci">[${i}]</div><div class="mk">${markAt(i)}</div></div>`;
         }
-        if(v.len>show)cells+=`<div class="cell last"><div class="cv">…</div><div class="ci">共 ${v.len} 格</div></div>`;
+        if(v.len>show)cells+=(ENG()?`<div class="cell last"><div class="cv">…</div><div class="ci">${v.len} cells in total</div></div>`:`<div class="cell last"><div class="cv">…</div><div class="ci">共 ${v.len} 格</div></div>`);
         if(oob!==null)cells+=`<div class="cell oob"><div class="cv">?</div><div class="ci">[${oob}]</div><div class="mk">${markAt(oob)}</div></div>`;
-        h+=`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${v.len}]・${T(`每格 ${SIZE[v.type]} bytes`,`${SIZE[v.type]} bytes each`)}</span></div></div><div class="arr">${cells}</div></div>`;
+        h+=(ENG()?`<div><div class="arr-head"><div class="addr" title="The address is only an example. A real computer may use a different one each time.">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${v.len}]・${T(`每格 ${SIZE[v.type]} bytes`,`${SIZE[v.type]} bytes each`)}</span></div></div><div class="arr">${cells}</div></div>`:`<div><div class="arr-head"><div class="addr" title="位址只是示意，真實電腦每次執行都可能不同">0x${v.addr.toString(16)}</div><div class="meta"><span class="nm">${names(v)}</span> <span class="ty">${TNAME[v.type]}[${v.len}]・${T(`每格 ${SIZE[v.type]} bytes`,`${SIZE[v.type]} bytes each`)}</span></div></div><div class="arr">${cells}</div></div>`);
       }
     }
   }
