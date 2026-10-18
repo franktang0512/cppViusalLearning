@@ -5,9 +5,19 @@
      arr     被拆的那個陣列的名字（main 裡的陣列）
    每一次呼叫畫成一段，同一層畫在同一列；每一格都對齊陣列的位置，看得出來只是把同一塊記憶體切成小段，沒有複製。
    整棵樹的形狀從整個執行過程先算好，往下按只換顏色和數字，畫面不會跳。 */
+// Python 課：把 Python 的快照（名字放在一層一層的框裡）換成 C++ 那種格式，下面就能共用
+function pyDC(t){
+  if(!t||!t.py)return t;if(t._dc)return t._dc;
+  const P=t.py,objs=new Map(P.objs.map(o=>[o.id,o])),fr=P.frames.filter(f=>!f.gap),vars=[];
+  fr.forEach(f=>f.names.forEach(n=>{const o=objs.get(n.ref);if(!o)return;
+    if(o.t==="int")vars.push({scope:f.key,name:n.name,init:[true],values:[+o.repr]});
+    else if(o.t==="list"&&o.items)vars.push({scope:f.key,name:n.name,isArr:true,len:o.items.length,id:String(o.id),values:o.items.map(x=>x.repr),init:o.items.map(()=>true)})}));
+  return t._dc={frames:fr.map(f=>({key:f.key,label:f.fn})),vars,retv:P.retv,changed:P.cells||[]};
+}
 function renderDC(L,s){
   const D=L.dc;if(!D)return;
-  const box=document.getElementById("graphBox"),tr=(ST&&ST.trace)||[],cur=Math.max(0,tr.indexOf(s));
+  let box=document.getElementById("graphBox"),tr=(ST&&ST.trace)||[],cur=Math.max(0,tr.indexOf(s));
+  if(typeof COURSE!=="undefined"&&COURSE==="py"){tr=tr.map(pyDC);s=pyDC(s)}
   // ---- 找出每一次呼叫：哪一層、範圍、誰呼叫它、從第幾步活到第幾步、回傳什麼
   const calls=new Map();
   tr.forEach((t,k)=>{

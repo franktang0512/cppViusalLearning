@@ -341,3 +341,5 @@ PY_CHAPTERS.push(
 {part:"Case Study",id:26,py:true,title:"圖論延伸",soon:["拓撲排序與判斷環","Bellman-Ford","二分圖判斷","最大流","最大匹配"]},
 {part:"Case Study",id:27,py:true,title:"Python 的速度與 TLE",soon:["為什麼同樣的演算法，Python 比 C++ 慢","sys.stdin.readline：讀大量輸入","deque、內建函式：能用內建的就用","遞迴改成迴圈：避開深度上限","Counter：數數用的 dict"]}
 );
+// 某一章做好了：換上課程、拿掉「製作中」的大綱（各章的檔案 js/py/chNN.js 用這個）
+function setPyLessons(id,lessons){const ch=PY_CHAPTERS.find(c=>c.id===id);ch.lessons=lessons;delete ch.soon}

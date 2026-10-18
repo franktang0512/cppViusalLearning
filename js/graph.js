@@ -19,10 +19,40 @@
      title          圖上面的標題（沒給就寫「圖（無向）」或「圖（有向）」）
      cur、nb        「現在在哪個點」「正在看哪個鄰居」的變數名稱
      queue          queue / stack / vector 的名字（裡面放 pair {距離, 點} 時，看最後一個欄位），或 {arr, front, rear}（用陣列做的 queue） */
+/* Python 課：把 Python 的快照換成上面那種變數格式（名字 → int / list / 二維 list），下面的畫法就能共用。
+   二維 list 每一列一樣長就當成鄰接矩陣；課程寫 list:true 時，from 那個二維 list 當成鄰接串列。
+   tuple (v, w) 當成「鄰居、長度」；queue 裡放 tuple 時看最後一個（例如 (距離, 點) 的點）。 */
+function pyGraphSnap(t,G){
+  if(!t||!t.py)return t;
+  const P=t.py,objs=new Map(P.objs.map(o=>[o.id,o])),vars=[];
+  const num=r=>r==="True"?1:r==="False"?0:/^-?\d+(\.\d+)?$/.test(r)?+r:null;
+  const tup=r=>{const m=String(r).match(/-?\d+/g)||[];return{sdef:1,vals:m.map(Number)}};
+  const last=r=>{const m=String(r).match(/-?\d+/g);return r[0]==="("&&m?+m[m.length-1]:num(r)};
+  P.frames.filter(f=>!f.gap).forEach(f=>f.names.forEach(n=>{const o=objs.get(n.ref);if(!o)return;
+    const b={name:n.name,scope:f.key,id:String(o.id)};
+    if(n.name===G.queue&&o.items){vars.push({...b,values:[o.items.map(x=>last(x.repr))]});return}
+    if(o.t==="int"||o.t==="bool"||o.t==="float"){vars.push({...b,init:[true],values:[num(o.repr)]});return}
+    if(o.t!=="list"||!o.items)return;
+    // 邊串列：list 裡放 tuple (u, v, w)，當成 C++ 的 struct 陣列
+    if(G.from&&G.from.arr===n.name&&o.items.every(x=>x.t==="tuple")){
+      const rows=o.items.map(x=>tup(x.repr).vals),K=Math.max(3,...rows.map(r=>r.length));
+      vars.push({...b,sdef:{fields:[G.from.u||"u",G.from.v||"v",G.from.w||"w"].map(name=>({name}))},len:rows.length,
+        init:Array(rows.length*K).fill(true),values:rows.flatMap(r=>Array.from({length:K},(_,i)=>r[i]??null))});return}
+    const rows=o.items.length&&o.items.every(x=>x.t==="list")?o.items.map(x=>objs.get(x.id)):null;
+    if(rows&&rows.every(Boolean)){
+      if(G.list&&n.name===G.from){vars.push({...b,type:"vector",elem:"vector",values:[rows.map(r=>r.items.map(x=>x.t==="tuple"?tup(x.repr):num(x.repr)))]});return}
+      const C=rows[0].items.length;
+      if(rows.every(r=>r.items.length===C)){vars.push({...b,dims:[rows.length,C],len:rows.length*C,init:Array(rows.length*C).fill(true),values:rows.flatMap(r=>r.items.map(x=>num(x.repr)))});return}
+    }
+    vars.push({...b,isArr:true,len:o.items.length,init:o.items.map(()=>true),values:o.items.map(x=>num(x.repr))});
+  }));
+  return{...t,vars,changed:P.cells||[]};
+}
 function renderGraph(L,s){
   const box=document.getElementById("graphBox"),G=L.graph;
   if(!G){box.hidden=true;box.innerHTML="";return}
   box.hidden=false;
+  if(typeof COURSE!=="undefined"&&COURSE==="py")s=pyGraphSnap(s,G);
   const vars=s?s.vars:[],base=G.base||0,n=G.n,nodes=Array.from({length:n},(_,i)=>base+i);
   const find=nm=>{let v=null;for(const x of vars)if(x.name===nm)v=x;return v};  // 同名時拿最新（最深那一層）的
   const scal=nm=>{const v=nm&&find(nm);return v&&!v.isArr&&v.init[0]&&typeof v.values[0]==="number"?v.values[0]:null};
