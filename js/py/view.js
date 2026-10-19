@@ -1,9 +1,10 @@
 /* ================= Python 課程：切換課程、記憶體區（名字 → 物件）、語法上色 =================
    網址加上 ?course=py 就是 Python 課程；沒有就是 C++。兩邊的進度分開存。 */
-const COURSE=(()=>{try{return new URLSearchParams(location.search).get("course")==="py"?"py":"cpp"}catch(e){return"cpp"}})();
-const SK=COURSE==="py"?"pyviz-":"ckviz-";   // localStorage 的前綴：已看過、上次看到哪一課、自己的測資
+// ?course=blk 是積木課（js/blk/）：目前只有章節規劃和積木工作區
+const COURSE=(()=>{try{const c=new URLSearchParams(location.search).get("course");return c==="py"||c==="blk"?c:"cpp"}catch(e){return"cpp"}})();
+const SK=COURSE==="py"?"pyviz-":COURSE==="blk"?"blkviz-":"ckviz-";   // localStorage 的前綴：已看過、上次看到哪一課、自己的測資
 const PY_CHAPTERS=[];
-function runCode(src,input){return COURSE==="py"?pyCompileAndRun(src,input):compileAndRun(src,input)}
+function runCode(src,input){return COURSE==="py"?pyCompileAndRun(src,input):COURSE==="blk"?blkRun(src,input):compileAndRun(src,input)}
 
 /* ---------- 記憶體區：左邊是名字，右邊是物件，箭頭表示「這個名字貼在哪個物件上」 ---------- */
 function renderPyMem(s,flash){
@@ -137,11 +138,18 @@ function pyHl(s){
 
 /* ---------- 頁面上的切換按鈕、頁尾說明 ---------- */
 (function(){
-  const c=document.getElementById("courseCpp"),p=document.getElementById("coursePy");
+  const c=document.getElementById("courseCpp"),p=document.getElementById("coursePy"),b=document.getElementById("courseBlk");
   if(c&&p){c.setAttribute("aria-pressed",COURSE==="cpp");p.setAttribute("aria-pressed",COURSE==="py")}
+  if(b)b.setAttribute("aria-pressed",COURSE==="blk");
   if(COURSE==="py"){
     const f=document.querySelector("footer");
     if(f){f.dataset.zh="教學用簡化模型：只支援 Python 的一部分語法（print、input、數字、字串、list、tuple、dict、set、if、while、for、def、class，和 collections.deque、heapq、bisect、itertools、copy 的一部分）。";
       f.dataset.en="A simple model for teaching: it supports only part of Python (print, input, numbers, strings, list, tuple, dict, set, if, while, for, def, class, and parts of collections.deque, heapq, bisect, itertools and copy).";f.textContent=f.dataset.zh}
+  }
+  if(COURSE==="blk"){
+    const f=document.querySelector("footer"),h=document.querySelector("#cppView .ph h2");
+    if(f){f.dataset.zh="Scratch 模式照 Scratch 的算法（文字會轉成數字、清單從第 1 項開始）；Blockly 模式照 JavaScript 的算法。「詢問並等待」依序拿輸入裡用空白、換行或逗號隔開的值。";
+      f.dataset.en="Scratch mode follows Scratch's rules (text is turned into numbers, and lists start at item 1). Blockly mode follows JavaScript's rules. \"Ask and wait\" takes the input values in order, separated by spaces, new lines, or commas.";f.textContent=f.dataset.zh}
+    if(h){h.dataset.zh="積木";h.dataset.en="Blocks";h.textContent="積木"}
   }
 })();

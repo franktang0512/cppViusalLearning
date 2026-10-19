@@ -11,13 +11,13 @@ const LFIELDS=["title","isNew","uses","goal","task","predict","ask","tips","tabl
 function applyLang(){
   for(const ch of CHAPTERS){
     if(!ch._zh)ch._zh={title:ch.title,part:ch.part,soon:ch.soon};
-    const e=LANG==="en"&&!ch.py?CH_EN[ch.id]:null;   // Python 課（ch.py）還沒有英文翻譯
+    const e=LANG==="en"&&!ch.py&&!ch.blk?CH_EN[ch.id]:null;   // Python 課（ch.py）還沒有英文翻譯
     ch.title=e&&e.title||ch._zh.title;
     ch.part=LANG==="en"?PART_EN[ch._zh.part]||ch._zh.part:ch._zh.part;
     ch.soon=e&&e.soon||ch._zh.soon;
     for(const L of ch.lessons||[]){
       if(!L._zh){L._zh={};LFIELDS.forEach(f=>L._zh[f]=L[f]);L._zh.tests=L.tests&&L.tests.map(t=>({...t}))}
-      const E=LANG==="en"&&!ch.py?LESSON_EN[L.id]:null;
+      const E=LANG==="en"&&!ch.py&&!ch.blk?LESSON_EN[L.id]:null;
       LFIELDS.forEach(f=>{L[f]=E&&E[f]!==undefined?E[f]:L._zh[f]});
       if(L._zh.tests)L.tests=L._zh.tests.map((t,i)=>({...t,...(E&&E.tests&&E.tests[i]||{})}));
     }
@@ -27,5 +27,5 @@ function applyLang(){
   document.querySelectorAll("[data-en]").forEach(el=>{if(el.dataset.zh===undefined)el.dataset.zh=el.textContent;el.textContent=T(el.dataset.zh,el.dataset.en)});
   document.querySelectorAll("[data-en-title]").forEach(el=>{if(el.dataset.zhTitle===undefined)el.dataset.zhTitle=el.title;el.title=T(el.dataset.zhTitle,el.dataset.enTitle)});
   document.querySelectorAll("[data-en-label]").forEach(el=>{if(el.dataset.zhLabel===undefined)el.dataset.zhLabel=el.getAttribute("aria-label");el.setAttribute("aria-label",T(el.dataset.zhLabel,el.dataset.enLabel))});
-  document.title=typeof COURSE!=="undefined"&&COURSE==="py"?T("看得見的 Python：一步一步看程式怎麼跑","Step Into Python: watch a program run step by step"):T("看得見的 C++：一步一步看程式怎麼跑","Step Into C++: watch a program run step by step");
+  document.title=typeof COURSE!=="undefined"&&COURSE==="blk"?T("看得見的 Scratch / Blockly","Step Into Scratch / Blockly"):typeof COURSE!=="undefined"&&COURSE==="py"?T("看得見的 Python：一步一步看程式怎麼跑","Step Into Python: watch a program run step by step"):T("看得見的 C++：一步一步看程式怎麼跑","Step Into C++: watch a program run step by step");
 }

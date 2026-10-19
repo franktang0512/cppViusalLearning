@@ -22,7 +22,7 @@
       <button class="mode-btn" id="modeFlow" aria-pressed="false" data-en="Flowchart">流程圖</button>
       </div>
       -->
-      <div class="modes course" role="group" aria-label="選擇程式語言"><a class="mode-btn" id="courseCpp" href="?course=cpp">C++</a><a class="mode-btn" id="coursePy" href="?course=py">Python</a></div>
+      <div class="modes course" role="group" aria-label="選擇程式語言"><a class="mode-btn" id="courseCpp" href="?course=cpp">C++</a><a class="mode-btn" id="coursePy" href="?course=py">Python</a><a class="mode-btn" id="courseBlk" href="?course=blk">Scratch / Blockly</a></div>
       <button class="mode-btn lang-btn" id="langBtn" title="切換成英文" data-en-title="Switch to Chinese">EN</button>
     </div>
     <!-- 流程圖模式先暫停
@@ -146,6 +146,13 @@
 <script src="js/py/ch19.js"></script>
 <script src="js/py/ch20.js"></script>
 <script src="js/py/ch21.js"></script>
+<!-- 積木課才載入 Blockly（從 jsDelivr；中文版再加中文的訊息檔） -->
+<script>if(COURSE==="blk"){document.write('<script src="https://cdn.jsdelivr.net/npm/blockly@11.2.1/blockly.min.js"><\/script>');if(LANG!=="en")document.write('<script src="https://cdn.jsdelivr.net/npm/blockly@11.2.1/msg/zh-hant.js"><\/script>')}</script>
+<script src="js/blk/blocks.js"></script>
+<script src="js/blk/interp.js"></script>
+<script src="js/blk/view.js"></script>
+<script src="js/blk/build.js"></script>
+<script src="js/blk/chapters.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

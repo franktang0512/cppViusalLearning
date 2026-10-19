@@ -514,3 +514,13 @@ svg.graph{display:block;width:100%;max-width:440px;height:auto;margin:2px auto 0
 .edited-tag{font-size:.75rem;font-weight:700;color:var(--warn-ink);background:var(--warn-bg);padding:1px 8px;border-radius:999px}
 .editor{min-height:200px;resize:vertical;overflow:hidden}
 kbd{font-family:var(--mono);font-size:.8em;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--panel)}
+/* Scratch / Blockly 課（?course=blk）：版面跟 C++ 共用，程式碼區換成積木工作區 */
+#courseBlk{border-radius:0 8px 8px 0;border-left:none}
+#coursePy{border-radius:0}
+.blk-course #codeArea{overflow:hidden;min-height:440px}
+.blk-ws{position:absolute;inset:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f9fafb}
+.blk-fail{padding:24px;border:1px dashed #e03131;border-radius:12px;color:#c92a2a}
+.blk-looks{display:inline-flex;margin:0 4px}
+.blk-looks .small-btn{border-radius:0}.blk-looks .small-btn:first-child{border-radius:6px 0 0 6px}.blk-looks .small-btn:last-child{border-radius:0 6px 6px 0;border-left:none}
+.blk-looks .small-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.blocklyHighlightedConnectionPath,.blocklySelected>.blocklyPath{stroke-width:3px}
