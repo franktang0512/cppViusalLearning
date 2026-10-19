@@ -69,6 +69,8 @@ function blkRun(src,input){
       blk:{scratch,vars,lists,frames:fr,answer:S.answer,changed:[...S.changed],read:[...S.read]},...extra});
     S.changed.clear();S.read.clear();S.notes=[];S.lastRead=null;
   }
+  // 詢問的問題會印到螢幕上（不換行，跟 Python 的 input("…") 一樣），OJ 也會比對
+  function prompt(b){const q=jsStr(ev(inputOf(b,"TEXT")));S.out+=q;return q}
   // 讀一個輸入的值（詢問並等待、Blockly 的輸入）
   function readToken(b){
     if(ti>=toks.length)throw{rt:tx("輸入（詢問）次數過多：輸入的資料已經全部讀完了，可是程式還要再讀。檢查「詢問」的次數，或測資是不是少了。","Too many inputs (asks): all the input has been read, but the program wants more. Check how many times you ask, or whether the test input is missing something."),b};
@@ -88,6 +90,7 @@ function blkRun(src,input){
       case"scratch_logic_compare":case"logic_compare":return`${I("A")} ${OPS[F(b,"OP")]} ${I("B")}`;
       case"logic_operation":return`(${I("A")}) ${F(b,"OP")==="AND"?tx("且","and"):tx("或","or")} (${I("B")})`;
       case"logic_negate":return`${tx("不成立","not")} (${I("BOOL")})`;
+      case"math_round":{const o=F(b,"OP");return`${o==="ROUNDUP"?tx("無條件進位","round up"):o==="ROUNDDOWN"?tx("無條件捨去","round down"):tx("四捨五入","round")} (${I("NUM")})`}
       case"math_modulo":return`${I("DIVIDEND")} ${tx("除以","mod")} ${I("DIVISOR")} ${tx("的餘數","")}`.trim();
       case"scratch_list_get_item":return`${vname(b,"LIST")} ${tx("的第","item")} ${I("INDEX")} ${tx("項","")}`.trim();
       case"scratch_list_length":return`${tx("清單","list")} ${vname(b,"LIST")} ${tx("的長度","length")}`;
@@ -167,7 +170,7 @@ function blkRun(src,input){
         return s.slice(at(F(b,"WHERE1"),"AT1")-1,at(F(b,"WHERE2"),"AT2"))}
       case"text_changeCase":{const s=jsStr(I("TEXT")),c=F(b,"CASE");return c==="UPPERCASE"?s.toUpperCase():c==="LOWERCASE"?s.toLowerCase():s.replace(/\S+/g,w=>w[0].toUpperCase()+w.slice(1).toLowerCase())}
       case"text_trim":{const s=jsStr(I("TEXT")),m=F(b,"MODE");return m==="LEFT"?s.trimStart():m==="RIGHT"?s.trimEnd():s.trim()}
-      case"text_prompt_ext":{const v=readToken(b);S.answer=v;return F(b,"TYPE")==="NUMBER"?Number(v):jsStr(v)}
+      case"text_prompt_ext":{prompt(b);const v=readToken(b);S.answer=v;return F(b,"TYPE")==="NUMBER"?Number(v):jsStr(v)}
       // Blockly 內建：清單（從第 1 項開始）
       case"lists_create_empty":return[];
       case"lists_create_with":{const n=(b.extraState&&b.extraState.itemCount)??3,a=[];for(let i=0;i<n;i++){const x=inputOf(b,"ADD"+i);a.push(x?ev(x):null)}return a}
@@ -208,8 +211,8 @@ function blkRun(src,input){
     switch(b.type){
       case"event_say":case"text_print":{const v=ev(I("TEXT")),s=jsStr(v);S.out+=s+"\n";
         snap(b,tx(`${b.type==="event_say"?"說出":"印出"} ${show(v)}：印到螢幕上，最後換行。`,`${b.type==="event_say"?"Say":"Print"} ${show(v)}: print it on the screen, then start a new line.`));return}
-      case"event_askandwait":{const v=readToken(b);S.answer=v;
-        snap(b,tx(`詢問並等待：從輸入拿下一個值，得到 ${show(v)}，放進「詢問的答案」${typeof v==="number"?"（是數字）":""}。`,`Ask and wait: take the next value of the input, ${show(v)}, and put it in "answer"${typeof v==="number"?" (it is a number)":""}.`));return}
+      case"event_askandwait":{const q=prompt(b),v=readToken(b);S.answer=v;
+        snap(b,(q?tx(`先把問題 ${show(q)} 印到螢幕上（OJ 也會比對它！）。`,`First print the question ${show(q)} on the screen (the OJ checks it too!). `):"")+tx(`詢問並等待：從輸入拿下一個值，得到 ${show(v)}，放進「詢問的答案」${typeof v==="number"?"（是數字）":""}。`,`Ask and wait: take the next value of the input, ${show(v)}, and put it in "answer"${typeof v==="number"?" (it is a number)":""}.`));return}
       case"variables_set":case"scratch_variables_set":{const n=vname(b),v=ev(I("VALUE")),old=findVar(n).m.get(n);setVar(n,cp(v));
         snap(b,tx(`把變數 <b>${e(n)}</b> 設為 ${show(v)}`+(isLit(I("VALUE"))?"":`（${e(blkSrc(I("VALUE")))}）`)+`。原本是 ${show(old)}。`,`Set the variable <b>${e(n)}</b> to ${show(v)}`+(isLit(I("VALUE"))?"":` (${e(blkSrc(I("VALUE")))})`)+`. It was ${show(old)}.`));return}
       case"math_change":case"scratch_variables_change":{const n=vname(b),d=ev(I("DELTA")),old=findVar(n).m.get(n);

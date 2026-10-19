@@ -19,7 +19,7 @@ const BLKP=(()=>{
     item:(l,i)=>({t:"item",l,i}),llen:l=>({t:"llen",l}),has:(l,x)=>({t:"has",l,x}),
     call:(name,...args)=>({t:"call",name,args}),answer:()=>({t:"answer"}),
     // ---------- 敘述 ----------
-    ask:(n,prompt,type="NUMBER")=>({t:"ask",n,prompt,type}),askOnly:prompt=>({t:"askOnly",prompt}),
+    ask:(n,prompt="",type="NUMBER")=>({t:"ask",n,prompt,type}),askOnly:(prompt="")=>({t:"askOnly",prompt}),
     say:x=>({t:"say",x}),set:(n,x)=>({t:"set",n,x}),change:(n,x)=>({t:"change",n,x}),
     iff:(c,then,els)=>({t:"if",arms:[[c,then]],els}),ifs:(arms,els)=>({t:"if",arms,els}),
     repeat:(n,body)=>({t:"repeat",n,body}),whilst:(c,body)=>({t:"loop",mode:"WHILE",c,body}),until:(c,body)=>({t:"loop",mode:"UNTIL",c,body}),
