@@ -459,10 +459,11 @@ function renderMem(s,flash){
   // 二維表格很大的時候（例如 DP 表格），這一步改到或讀到的格子跑出畫面，就捲過去
   const gc=!tr&&!(cur&&!arrParam)&&(box.querySelector("table.grid2 td.flash")||box.querySelector("table.grid2 td.rd"));
   if(gc){
-    const B=box.getBoundingClientRect(),G=gc.getBoundingClientRect(),y=G.top-B.top+box.scrollTop;
+    const Z=zoomOf(box),R=e=>zRect(e,Z);
+    const B=R(box),G=R(gc),y=G.top-B.top+box.scrollTop;
     if(box.scrollHeight>box.clientHeight&&(y<box.scrollTop+30||y+G.height>box.scrollTop+box.clientHeight-10))box.scrollTop=Math.max(0,y-box.clientHeight/2);
     let w=gc.closest("table").parentElement;while(w&&w!==box&&w.scrollWidth<=w.clientWidth)w=w.parentElement;
-    if(w&&w!==box){const W=w.getBoundingClientRect(),x=gc.getBoundingClientRect().left-W.left+w.scrollLeft;
+    if(w&&w!==box){const W=R(w),x=R(gc).left-W.left+w.scrollLeft;
       if(x<w.scrollLeft+40||x+G.width>w.scrollLeft+w.clientWidth-10)w.scrollLeft=Math.max(0,x-w.clientWidth/2)}
   }
 }
@@ -473,13 +474,14 @@ function drawArrows(){
   if(COURSE==="blk")return;   // 積木課沒有指標   // Python：名字 → 物件的箭頭
   const box=$("mem");const old=box.querySelector("svg.arrows");if(old)old.remove();
   const srcs=[...box.querySelectorAll("[data-p]")];if(!srcs.length||!box.offsetParent)return;
-  const B=box.getBoundingClientRect(),ox=box.scrollLeft-B.left,oy=box.scrollTop-B.top;
+  const Z=zoomOf(box),R=e=>zRect(e,Z);   // 區塊放大以後，換回 box 自己的單位
+  const B=R(box),ox=box.scrollLeft-B.left,oy=box.scrollTop-B.top;
   // 右邊的走道：所有格子最右邊再往右一點，往 heap 的箭頭從這裡往下走
-  const gut=Math.max(...[...box.querySelectorAll(".box,.sbox")].filter(e=>!e.closest(".heaprow")).map(e=>e.getBoundingClientRect().right))+ox+16;
+  const gut=Math.max(...[...box.querySelectorAll(".box,.sbox")].filter(e=>!e.closest(".heaprow")).map(e=>R(e).right))+ox+16;
   let paths="",nk=0;
   for(const s of srcs){
     const t=box.querySelector(`[data-sk="${s.dataset.p}"]`)||box.querySelector(`[data-k="${s.dataset.p}"]`);if(!t)continue;
-    const a=s.getBoundingClientRect(),b=t.getBoundingClientRect(),k=nk++;
+    const a=R(s),b=R(t),k=nk++;
     // 指向「指標」的箭頭（指標的指標）換一個顏色，比較容易分開看
     // 顏色：從函式指到外面的是粉紅（優先），指向另一個指標的是橘色
     const tp=!!t.dataset.p&&t.matches(".box"),out=fnOut(memVars,+(s.dataset.k||"").split(":")[0],+s.dataset.p.split(":")[0]);
@@ -515,7 +517,7 @@ function drawArrows(){
       d=`M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
     }else if(s.matches(".box")&&t.closest(".cell")){
       // 指標 → 陣列的某一格：從指標格子的上緣（或下緣）直直接到那一格的下面（或上面）
-      const cell=t.closest(".cell").getBoundingClientRect(),below=b.top>=a.bottom-4,x2=b.left+b.width/2+ox;
+      const cell=R(t.closest(".cell")),below=b.top>=a.bottom-4,x2=b.left+b.width/2+ox;
       const sx=Math.min(Math.max(x2,a.left+ox+18),a.right+ox-18),sy=(below?a.bottom:a.top)+oy,y2=(below?b.top-1:cell.bottom+1)+oy,k=Math.max(14,Math.abs(y2-sy)/2);
       x1=sx;d=`M${sx},${sy} C${sx},${below?sy+k:sy-k} ${x2},${below?y2-k:y2+k} ${x2},${y2}`;
       paths+=`<path class="ln" d="${d}"/><circle cx="${sx}" cy="${sy}" r="3.5"/>`;continue;

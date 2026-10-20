@@ -33,6 +33,9 @@ const BLKP=(()=>{
   // ---------- 產生積木 ----------
   function build(main,defs,m){
     const sc=m==="sc",vars=new Map(),lists=new Set();
+    // 函式也可以用 sc(…)、bl(…) 包起來，只放進其中一種模式；Scratch 的自訂積木沒有回傳值
+    defs=defs.flatMap(d=>d.t==="only"?(d.m===m?d.body:[]):[d]).map(f=>({...f,params:f.params||[]}));
+    if(sc&&defs.some(d=>d.ret!==undefined))throw new Error("blkProg: Scratch 的自訂積木沒有回傳值，改用變數把結果帶出來");
     const vid=n=>"v:"+n;
     const useVar=n=>{if(!vars.has(n))vars.set(n,"")};
     const useList=n=>{lists.add(n);if(!vars.has(n))vars.set(n,"list")};
@@ -72,7 +75,7 @@ const BLKP=(()=>{
         case"has":return sc?(useList(x.l),{type:"scratch_list_contain",fields:{LIST:F(x.l)},inputs:{ITEM:slot(x.x,"text")}})
           :E({t:"cmp",op:"GT",a:{t:"raw",b:{type:"lists_indexOf",fields:{END:"FIRST"},inputs:{VALUE:listVar(x.l),FIND:slot(x.x,"none")}}},b:0});
         case"raw":return x.b;
-        case"call":return{type:"procedures_callreturn",extraState:{name:x.name,params:defs.find(d=>d.name===x.name).params},inputs:args(x.args)};
+        case"call":if(sc)throw new Error("blkProg: Scratch 沒有會回傳值的積木："+x.name);return{type:"procedures_callreturn",extraState:{name:x.name,params:defs.find(d=>d.name===x.name).params},inputs:args(x.args)};
       }
       throw new Error("blkProg: 不認得的算值 "+JSON.stringify(x));
     }
@@ -137,6 +140,6 @@ const BLKP=(()=>{
     });
     return{blocks:{languageVersion:0,blocks:tops},variables:[...vars].map(([n,t])=>t?{name:n,id:vid(n),type:t}:{name:n,id:vid(n)})};
   }
-  X.blkProg=(main,defs=[])=>{const d=defs.map(f=>({...f,params:f.params||[]}));return{code:build(main,d,"sc"),blocklyCode:build(main,d,"bl")}};
+  X.blkProg=(main,defs=[])=>({code:build(main,defs,"sc"),blocklyCode:build(main,defs,"bl")});
   return X;
 })();

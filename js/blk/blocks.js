@@ -973,7 +973,7 @@ const BLK_TB_SCRATCH={
     {
       kind: "category",
       name: "函式",
-      custom: "PROCEDURE",
+      custom: "SCRATCH_PROCEDURE",
       categorystyle: "procedure_category",
     },
   ],
@@ -1559,6 +1559,12 @@ function blkRegister(ws,look){
   ws.registerToolboxCategoryCallback("SCRATCH_VARIABLE",blkVariableFlyout);
   ws.registerButtonCallback("CREATE_SCRATCH_VARIABLE",()=>Blockly.Variables.createVariableButtonHandler(ws,undefined,""));
   ws.registerToolboxCategoryCallback("SCRATCH_LIST",blkListFlyout);
+  // Scratch 的自訂積木沒有回傳值：只放「定義（沒有回傳值）」和已經定義好的積木
+  ws.registerToolboxCategoryCallback("SCRATCH_PROCEDURE",w=>{
+    const out=[{kind:"block",type:"procedures_defnoreturn"}];
+    try{for(const[name,params]of Blockly.Procedures.allProcedures(w)[0])out.push({kind:"block",type:"procedures_callnoreturn",extraState:{name,params}})}catch(e){}
+    return out;
+  });
   ws.registerButtonCallback("CREATE_SCRATCH_LIST",()=>{const old=Blockly.Msg.NEW_VARIABLE_TITLE;Blockly.Msg.NEW_VARIABLE_TITLE="新清單名稱：";
     Blockly.Variables.createVariableButtonHandler(ws,()=>{Blockly.Msg.NEW_VARIABLE_TITLE=old},"list")});
 }

@@ -6,6 +6,11 @@ const SK=COURSE==="py"?"pyviz-":COURSE==="blk"?"blkviz-":"ckviz-";   // localSto
 const PY_CHAPTERS=[];
 function runCode(src,input){return COURSE==="py"?pyCompileAndRun(src,input):COURSE==="blk"?blkRun(src,input):compileAndRun(src,input)}
 
+// 區塊放大（CSS zoom，見 js/layout.js）以後，getBoundingClientRect 量到的是放大後的大小，
+// offsetWidth 還是原本的大小；畫在區塊裡的箭頭要除以放大倍率，換回區塊自己的單位
+function zoomOf(el){const w=el.offsetWidth;return w?el.getBoundingClientRect().width/w||1:1}
+function zRect(el,z){const r=el.getBoundingClientRect();return{left:r.left/z,right:r.right/z,top:r.top/z,bottom:r.bottom/z,width:r.width/z,height:r.height/z}}
+
 /* ---------- 記憶體區：左邊是名字，右邊是物件，箭頭表示「這個名字貼在哪個物件上」 ---------- */
 function renderPyMem(s,flash){
   const box=document.getElementById("mem"),leg=document.getElementById("memLegend");
@@ -96,31 +101,33 @@ function renderPyMem(s,flash){
   box.querySelectorAll(".pyobj .arr").forEach(a=>{
     if(a.scrollWidth<=a.clientWidth)return;
     const c=[...a.querySelectorAll(".cell")].find(c=>c.querySelector(".cv.flash,.cv.rd"))||[...a.querySelectorAll(".cell")].find(c=>(c.querySelector(".mk")||{}).textContent);
-    if(c)a.scrollLeft=Math.max(0,a.scrollLeft+c.getBoundingClientRect().left-a.getBoundingClientRect().left-a.clientWidth/2+c.offsetWidth/2);
+    const Z=zoomOf(a),R=e=>zRect(e,Z);
+    if(c)a.scrollLeft=Math.max(0,a.scrollLeft+R(c).left-R(a).left-a.clientWidth/2+c.offsetWidth/2);
   });
   pyArrows(box);
 }
 function pyArrows(box){
   const old=box.querySelector("svg.arrows");if(old)old.remove();
   if(!box.querySelector(".pymem")||!box.offsetParent)return;
-  const B=box.getBoundingClientRect(),ox=box.scrollLeft-B.left,oy=box.scrollTop-B.top;let paths="";
+  const Z=zoomOf(box),R=e=>zRect(e,Z);   // 區塊放大以後，換回 box 自己的單位
+  const B=R(box),ox=box.scrollLeft-B.left,oy=box.scrollTop-B.top;let paths="";
   box.querySelectorAll(".pyname").forEach(nm=>{
     const t=box.querySelector(`[data-oid="${nm.dataset.ref}"]`);if(!t)return;
-    const a=nm.getBoundingClientRect(),b=t.getBoundingClientRect();
+    const a=R(nm),b=R(t);
     const x1=a.right+ox,y1=a.top+a.height/2+oy,x2=b.left+ox-2,y2=Math.min(b.top+22,b.top+b.height/2)+oy,m=(x1+x2)/2;
     paths+=`<path class="ln" d="M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}"/><circle cx="${x1}" cy="${y1}" r="3.5"/>`;
   });
   // 物件的屬性、list 的格子 → 它指著的物件（在下面就從上面進去，在上面就從下面進去）
   box.querySelectorAll(".pref[data-ref]").forEach(d=>{
     const t=box.querySelector(`.pyobj[data-oid="${d.dataset.ref}"]`);if(!t)return;
-    const a=d.getBoundingClientRect(),b=t.getBoundingClientRect();
+    const a=R(d),b=R(t);
     const x1=a.left+a.width/2+ox,y1=a.top+a.height/2+oy,below=b.top>a.bottom,x2=b.left+Math.min(34,b.width/2)+ox,y2=(below?b.top-2:b.bottom+2)+oy,dy=below?-34:34;
     paths+=`<path class="ln" d="M${x1},${y1} C${x1+46},${y1} ${x2},${y2+dy} ${x2},${y2}"/><circle cx="${x1}" cy="${y1}" r="3.5"/>`;
   });
   // 二維 list：外層的格子 → 那一列的 list
   box.querySelectorAll(".g2c[data-ref]").forEach(c=>{
     const t=box.querySelector(`.g2row[data-oid="${c.dataset.ref}"]`);if(!t)return;
-    const d=c.querySelector(".g2dot").getBoundingClientRect(),b=t.getBoundingClientRect();
+    const d=c.querySelector(".g2dot").getBoundingClientRect(),b=R(t);
     const x1=d.left+d.width/2+ox,y1=d.top+d.height/2+oy,x2=b.left+ox-2,y2=b.top+Math.min(28,b.height/2)+oy,m=(x1+x2)/2;
     paths+=`<path class="ln" d="M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}"/><circle cx="${x1}" cy="${y1}" r="3.5"/>`;
   });
