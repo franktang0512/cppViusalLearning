@@ -462,8 +462,10 @@ function renderMem(s,flash){
     const Z=zoomOf(box),R=e=>zRect(e,Z);
     const B=R(box),G=R(gc),y=G.top-B.top+box.scrollTop;
     if(box.scrollHeight>box.clientHeight&&(y<box.scrollTop+30||y+G.height>box.scrollTop+box.clientHeight-10))box.scrollTop=Math.max(0,y-box.clientHeight/2);
-    let w=gc.closest("table").parentElement;while(w&&w!==box&&w.scrollWidth<=w.clientWidth)w=w.parentElement;
-    if(w&&w!==box){const W=R(w),x=R(gc).left-W.left+w.scrollLeft;
+    // 往外找真的可以左右捲的那一層（可能就是整塊記憶體區）
+    const canX=el=>el.scrollWidth>el.clientWidth&&/auto|scroll/.test(getComputedStyle(el).overflowX);
+    let w=gc.closest("table").parentElement;while(w&&w!==box&&!canX(w))w=w.parentElement;
+    if(w&&(w!==box||box.scrollWidth>box.clientWidth)){const W=R(w),x=R(gc).left-W.left+w.scrollLeft;
       if(x<w.scrollLeft+40||x+G.width>w.scrollLeft+w.clientWidth-10)w.scrollLeft=Math.max(0,x-w.clientWidth/2)}
   }
 }

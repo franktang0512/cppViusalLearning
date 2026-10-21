@@ -5,10 +5,11 @@
    兩種模式用的積木不一樣，所以各有各的工作區（各自存在瀏覽器裡）。
    跟原專案不一樣的地方：
      1. 綠旗圖示：原本的 img/flag.svg 是 Font Awesome Pro（商業授權），這裡換成自己畫的 BLK_FLAG。
-     2. Scratch 模式的「函式」：原本的自訂積木對話框是 React 寫的，先用 Blockly 內建的自訂積木（PROCEDURE）。
+     2. Scratch 模式的「函式」：積木照原專案（scratch_function_*）；「建立一個積木」對話框原本是 React 寫的，這裡改用一般的 HTML（blkFunctionDialog）。
+        「數字或文字」參數不設型別，才放得進「重複 ( ) 次」、「+」這些只收數字的格子（原專案設成 NumberString，接不上去）。
      3. 「詢問並等待」的預設文字原本寫在 NUM 欄位，改成 TEXT。
    只在 ?course=blk 而且 Blockly 載入成功時才會用到。 */
-const BLK_FLAG="data:image/svg+xml;charset=utf-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><rect x="3" y="2" width="2.2" height="17" rx="1.1" fill="#455a64"/><path d="M5.2 3.2h10.3l-2.6 3.6 2.6 3.6H5.2z" fill="#4cbf56" stroke="#389438" stroke-width="1" stroke-linejoin="round"/></svg>');
+const BLK_FLAG="data:image/svg+xml;charset=utf-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><rect x="1.5" y="0.8" width="2.8" height="18.4" rx="1.4" fill="#008000"/><path d="M4.3 2.6C6.6 1.3 9 1.3 11.2 2.5S15.9 3.8 18.2 2.6V12.4C15.9 13.6 13.4 13.6 11.2 12.4S6.6 11.1 4.3 12.4Z" fill="#008000" stroke="#008000" stroke-width="1.2" stroke-linejoin="round"/></svg>');   // 自己畫的：跟原專案一樣是一整塊綠色、旗面有波浪
 let BLK_DEFINED=false;
 function blkDefine(){
   if(typeof Blockly==="undefined")return false;
@@ -585,7 +586,170 @@ function blkDefine(){
         this.setTooltip("取得指定值在列表中的位置");
       },
     };
+  // ---------- Scratch 模式的自訂積木（原專案 scratch.ts 的 functionMixin、scratch_function_*） ----------
+  const functionMixin={
+    parameters_:[],
+    addParameter:function(name,type){
+      const stackInput=this.getInput("STACK"),stackTarget=stackInput&&stackInput.connection&&stackInput.connection.targetBlock();
+      if(stackInput)this.removeInput("STACK");
+      if(!this.parameters_)this.parameters_=[];
+      this.parameters_.push({name,type});
+      if(type==="Label")this.appendDummyInput(name).appendField(name);
+      else{
+        const input=this.appendValueInput(name).setCheck(type==="NumberString"?["Number","String"]:"Boolean");
+        const paramBlock=this.workspace.newBlock("scratch_function_param");
+        paramBlock.setShadow(true);   // 原專案的作法：避免讀檔、複製時參數積木變成兩塊
+        paramBlock.setMovable(false);
+        paramBlock.setFieldValue(name,"PARAM_NAME");
+        if(paramBlock.initSvg){paramBlock.initSvg();paramBlock.render()}
+        input.connection.connect(paramBlock.outputConnection);
+      }
+      if(stackInput){
+        this.appendStatementInput("STACK").setCheck(null);
+        if(stackTarget&&!stackTarget.disposed&&stackTarget.previousConnection)this.getInput("STACK").connection.connect(stackTarget.previousConnection);
+      }
+    },
+    mutationToDom:function(){
+      const c=Blockly.utils.xml.createElement("mutation");
+      c.setAttribute("name",(this.getField("NAME")&&this.getField("NAME").getValue())||"");
+      this.parameters_.forEach(p=>{const a=Blockly.utils.xml.createElement("arg");a.setAttribute("name",p.name);a.setAttribute("type",p.type);c.appendChild(a)});
+      return c;
+    },
+    domToMutation:function(xml){
+      if(!this.parameters_)this.parameters_=[];
+      const f=this.getField("NAME");if(f)f.setValue(xml.getAttribute("name")||"");
+      this.inputList.slice().forEach(i=>{if(!["HEADER","STACK"].includes(i.name))this.removeInput(i.name)});
+      for(const ch of Array.from(xml.childNodes))if(ch.nodeName.toLowerCase()==="arg"){
+        const n=ch.getAttribute("name"),t=ch.getAttribute("type");if(n&&t)this.addParameter(n,t);
+      }
+    },
+  };
+  Blockly.Blocks["scratch_function_create"]={
+    init:function(){
+      this.appendDummyInput().appendField("定義").appendField(new Blockly.FieldLabel("新積木"),"NAME");
+      this.setStyle("procedure_blocks");this.setInputsInline(true);this.parameters_=[];
+    },...functionMixin};
+  Blockly.Blocks["scratch_function_definition"]={
+    init:function(){
+      this.appendDummyInput("HEADER").appendField("定義").appendField(new Blockly.FieldLabel(" "),"NAME");
+      this.appendStatementInput("STACK").setCheck(null);
+      this.setStyle("procedure_blocks");this.setInputsInline(true);this.parameters_=[];
+    },...functionMixin};
+  Blockly.Blocks["scratch_function_call"]={
+    init:function(){
+      this.appendDummyInput("HEADER").appendField(new Blockly.FieldLabel(" "),"NAME");
+      this.setPreviousStatement(true,null);this.setNextStatement(true,null);
+      this.setStyle("procedure_blocks");this.setInputsInline(true);this.parameters_=[];
+    },...functionMixin,
+    addParameter:function(name,type){
+      if(!this.parameters_)this.parameters_=[];
+      this.parameters_.push({name,type});
+      this.appendDummyInput("DUMMY_TEXT").appendField(name+":");
+      if(type!=="Label")this.appendValueInput(name).setCheck(type==="NumberString"?["Number","String"]:"Boolean");
+    }};
+  Blockly.Blocks["scratch_function_param"]={
+    init:function(){
+      this.appendDummyInput().appendField(new Blockly.FieldLabel(""),"PARAM_NAME");
+      this.setOutput(true,null);this.setStyle("procedure_parameter_blocks");
+    },
+    mutationToDom:function(){
+      const c=Blockly.utils.xml.createElement("mutation");
+      c.setAttribute("name",this.getFieldValue("PARAM_NAME"));
+      c.setAttribute("paramtype",(this.outputConnection&&this.outputConnection.getCheck&&(this.outputConnection.getCheck()||[])[0])||"");
+      return c;
+    },
+    domToMutation:function(xml){
+      const n=xml.getAttribute("name"),t=xml.getAttribute("paramtype");
+      if(n)this.setFieldValue(n,"PARAM_NAME");
+      // 跟原專案不一樣：「數字或文字」參數不設型別，才放得進「重複 ( ) 次」、「+」這些只收數字的格子
+      if(t&&t!=="NumberString")this.setOutput(true,t);
+    }};
   return true;
+}
+/* ---------- Scratch 模式的「函式」分類（原專案的 functionFlyoutCallback） ---------- */
+function blkFunctionFlyout(ws){
+  const xml=[],btn=document.createElement("button");btn.setAttribute("text","建立函式");btn.setAttribute("callbackKey","CREATE_SCRATCH_FUNCTION");xml.push(btn);
+  const defs=ws.getBlocksByType("scratch_function_definition",false);
+  defs.forEach((d,i)=>{
+    const call=document.createElement("block");call.setAttribute("type","scratch_function_call");
+    const m=d.mutationToDom();if(m)call.appendChild(m);
+    const f=document.createElement("field");f.setAttribute("name","NAME");f.textContent=d.getFieldValue("NAME");call.appendChild(f);
+    xml.push(call);
+    (d.parameters_||[]).forEach(p=>{
+      if(p.type==="Label")return;
+      const pb=document.createElement("block");pb.setAttribute("type","scratch_function_param");
+      const pm=document.createElement("mutation");pm.setAttribute("name",p.name);pm.setAttribute("paramtype",p.type==="Boolean"?"Boolean":"NumberString");pb.appendChild(pm);
+      const pf=document.createElement("field");pf.setAttribute("name","PARAM_NAME");pf.textContent=p.name;pb.appendChild(pf);
+      xml.push(pb);
+    });
+    if(i<defs.length-1){const sep=document.createElement("sep");sep.setAttribute("gap","80");xml.push(sep)}
+  });
+  return xml;
+}
+/* ---------- 「建立一個積木」對話框（原專案的 ScratchFunctionCreationDialog.tsx，改用一般的 HTML） ---------- */
+function blkFunctionDialog(ws){
+  const old=document.getElementById("blkFnDlg");if(old)old.remove();
+  const box=document.createElement("div");box.id="blkFnDlg";box.className="blk-fn-dlg";
+  box.innerHTML=`<div class="blk-fn-card" role="dialog" aria-modal="true" aria-labelledby="blkFnTitle">
+    <div class="blk-fn-head" id="blkFnTitle">建立一個積木</div>
+    <div class="blk-fn-body">
+      <label class="blk-fn-label" for="blkFnName">積木名稱</label>
+      <input id="blkFnName" class="blk-fn-name" value="新積木" placeholder="輸入積木名稱">
+      <div class="blk-fn-label">參數列表</div><ul class="blk-fn-params" id="blkFnParams"></ul>
+      <div class="blk-fn-ws" id="blkFnWs"></div>
+      <div class="blk-fn-adds">
+        <button type="button" data-add="NumberString"><b>添加輸入方塊</b><span>數字或文字</span></button>
+        <button type="button" data-add="Boolean"><b>添加輸入方塊</b><span>布林值</span></button>
+        <button type="button" data-add="Label"><b>添加說明文字</b></button>
+      </div>
+    </div>
+    <div class="blk-fn-foot"><button type="button" class="small-btn" id="blkFnCancel">取消</button><button type="button" class="small-btn run" id="blkFnOk">確定</button></div>
+  </div>`;
+  document.body.appendChild(box);
+  let params=[];
+  // 預覽：上面放一塊「定義 新積木」，參數改了就重做一塊
+  const pws=Blockly.inject("blkFnWs",{renderer:"zelos",theme:blkTheme("scratch"),trashcan:false,sounds:false,
+    grid:{spacing:20,length:3,colour:"#e3e6ee",snap:true},zoom:{controls:true,wheel:true,startScale:1,maxScale:3,minScale:0.3,scaleSpeed:1.2},move:{scrollbars:true,drag:true,wheel:true}});
+  const nameEl=box.querySelector("#blkFnName");
+  function preview(){
+    pws.clear();
+    const b=pws.newBlock("scratch_function_create");b.setFieldValue(nameEl.value,"NAME");
+    params.forEach(p=>b.addParameter(p.name,p.type));
+    b.initSvg();b.render();pws.scrollCenter();
+    box.querySelector("#blkFnParams").innerHTML=params.map((p,i)=>`<li><button type="button" class="blk-fn-chip ${p.type}" data-del="${i}" title="刪除"><span></span> ✕</button></li>`).join("");
+    box.querySelectorAll("[data-del]").forEach((el,i)=>{el.querySelector("span").textContent=params[i].name;el.onclick=()=>{params.splice(i,1);preview()}});
+  }
+  nameEl.oninput=()=>{const b=pws.getBlocksByType("scratch_function_create")[0];if(b)b.setFieldValue(nameEl.value,"NAME")};
+  box.querySelectorAll("[data-add]").forEach(el=>el.onclick=()=>{
+    const type=el.dataset.add;
+    Blockly.dialog.prompt(type==="Label"?"輸入說明文字:":"輸入參數名稱:","",n=>{
+      if(n===null||n===undefined)return;n=n.trim();
+      if(n===""){alert("參數名稱不能為空白");return}
+      if(params.some(p=>p.name===n)){alert("參數名稱重複");return}
+      params.push({name:n,type});preview();
+    });
+  });
+  const close=()=>{pws.dispose();box.remove()};
+  box.querySelector("#blkFnCancel").onclick=close;
+  box.querySelector("#blkFnOk").onclick=()=>{
+    const name=nameEl.value.trim();if(!name){alert("請輸入積木名稱");return}
+    close();
+    const d=ws.newBlock("scratch_function_definition");d.setFieldValue(name,"NAME");
+    params.forEach(p=>d.addParameter(p.name,p.type));
+    d.initSvg();d.render();
+    const m=ws.getMetrics(),xy=ws.getOriginOffsetInPixels();
+    d.moveBy(xy.x+(m&&m.viewWidth||0)/3,xy.y+(m&&m.viewHeight||0)/4);
+    ws.refreshToolboxSelection();
+  };
+  setTimeout(()=>{Blockly.svgResize(pws);preview();nameEl.focus();nameEl.select()},0);
+}
+// 存工作區：自訂積木裡的參數積木不存（讀回來時會自己長出來，原專案 CodeEditor.tsx 的作法）
+function blkSave(ws){
+  const j=Blockly.serialization.workspaces.save(ws);
+  ((j.blocks&&j.blocks.blocks)||[]).forEach(b=>{
+    if(b.type==="scratch_function_definition"&&b.inputs)for(const[k,v]of Object.entries(b.inputs))if(v&&((v.block||v.shadow)||{}).type==="scratch_function_param")delete b.inputs[k];
+  });
+  return j;
 }
 
 /* ---------- 主題（原專案 scratch.ts 的 scratchTheme、blockly.ts 的 blocklyTheme） ---------- */
@@ -973,7 +1137,7 @@ const BLK_TB_SCRATCH={
     {
       kind: "category",
       name: "函式",
-      custom: "SCRATCH_PROCEDURE",
+      custom: "SCRATCH_FUNCTION",
       categorystyle: "procedure_category",
     },
   ],
@@ -1559,12 +1723,9 @@ function blkRegister(ws,look){
   ws.registerToolboxCategoryCallback("SCRATCH_VARIABLE",blkVariableFlyout);
   ws.registerButtonCallback("CREATE_SCRATCH_VARIABLE",()=>Blockly.Variables.createVariableButtonHandler(ws,undefined,""));
   ws.registerToolboxCategoryCallback("SCRATCH_LIST",blkListFlyout);
-  // Scratch 的自訂積木沒有回傳值：只放「定義（沒有回傳值）」和已經定義好的積木
-  ws.registerToolboxCategoryCallback("SCRATCH_PROCEDURE",w=>{
-    const out=[{kind:"block",type:"procedures_defnoreturn"}];
-    try{for(const[name,params]of Blockly.Procedures.allProcedures(w)[0])out.push({kind:"block",type:"procedures_callnoreturn",extraState:{name,params}})}catch(e){}
-    return out;
-  });
+  // 函式：「建立函式」打開對話框，下面列出已經定義的積木和它們的參數（Scratch 的自訂積木沒有回傳值）
+  ws.registerToolboxCategoryCallback("SCRATCH_FUNCTION",blkFunctionFlyout);
+  ws.registerButtonCallback("CREATE_SCRATCH_FUNCTION",()=>blkFunctionDialog(ws));
   ws.registerButtonCallback("CREATE_SCRATCH_LIST",()=>{const old=Blockly.Msg.NEW_VARIABLE_TITLE;Blockly.Msg.NEW_VARIABLE_TITLE="新清單名稱：";
     Blockly.Variables.createVariableButtonHandler(ws,()=>{Blockly.Msg.NEW_VARIABLE_TITLE=old},"list")});
 }

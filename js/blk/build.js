@@ -37,6 +37,11 @@ const BLKP=(()=>{
     defs=defs.flatMap(d=>d.t==="only"?(d.m===m?d.body:[]):[d]).map(f=>({...f,params:f.params||[]}));
     if(sc&&defs.some(d=>d.ret!==undefined))throw new Error("blkProg: Scratch 的自訂積木沒有回傳值，改用變數把結果帶出來");
     const vid=n=>"v:"+n;
+    // Scratch 模式的自訂積木（scratch_function_*）：名字和參數寫在 <mutation> 裡；cur＝正在產生的那個定義的參數
+    let cur=new Set();
+    const xe=s=>String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const fmut=d=>`<mutation name="${xe(d.name)}">`+d.params.map(p=>`<arg name="${xe(p)}" type="NumberString"></arg>`).join("")+"</mutation>";
+    const def=name=>{const d=defs.find(d=>d.name===name);if(!d)throw new Error("blkProg: 沒有定義 "+name);return d};
     const useVar=n=>{if(!vars.has(n))vars.set(n,"")};
     const useList=n=>{lists.add(n);if(!vars.has(n))vars.set(n,"list")};
     const F=n=>({id:vid(n)});
@@ -54,7 +59,8 @@ const BLKP=(()=>{
       if(typeof x==="boolean")return{type:"logic_boolean",fields:{BOOL:x?"TRUE":"FALSE"}};
       if(lit(x))return typeof x==="number"?num(x):txt(x);
       switch(x.t){
-        case"var":useVar(x.n);return{type:sc?"scratch_variables_get":"variables_get",fields:{VAR:F(x.n)}};
+        case"var":if(sc&&cur.has(x.n))return{type:"scratch_function_param",extraState:`<mutation name="${xe(x.n)}" paramtype=""></mutation>`};
+          useVar(x.n);return{type:sc?"scratch_variables_get":"variables_get",fields:{VAR:F(x.n)}};
         case"answer":return{type:"event_answer"};
         case"ar":return{type:sc?"scratch_math_arithmetic":"math_arithmetic",fields:{OP:x.op},inputs:{A:slot(x.a,"num"),B:slot(x.b,"num")}};
         case"mod":return{type:"math_modulo",inputs:{DIVIDEND:slot(x.a,"num"),DIVISOR:slot(x.b,"num")}};
@@ -113,7 +119,9 @@ const BLKP=(()=>{
           :[{type:"lists_setIndex",fields:{MODE:"INSERT",WHERE:"FROM_START"},inputs:{LIST:listVar(s.l),AT:slot(s.i,"num"),TO:slot(s.x,"none")}}];
         case"remove":return sc?(useList(s.l),[{type:"scratch_list_remove",fields:{LIST:F(s.l)},inputs:{INDEX:slot(s.i,"num")}}])
           :[{type:"lists_getIndex",extraState:{isStatement:true},fields:{MODE:"REMOVE",WHERE:"FROM_START"},inputs:{VALUE:listVar(s.l),AT:slot(s.i,"num")}}];
-        case"run":return[{type:"procedures_callnoreturn",extraState:{name:s.name,params:defs.find(d=>d.name===s.name).params},inputs:args(s.args)}];
+        case"run":if(sc){const d=def(s.name),inputs={};d.params.forEach((p,i)=>{if(i<s.args.length)inputs[p]=slot(s.args[i],"text")});
+            return[{type:"scratch_function_call",extraState:fmut(d),inputs}]}
+          return[{type:"procedures_callnoreturn",extraState:{name:s.name,params:defs.find(d=>d.name===s.name).params},inputs:args(s.args)}];
       }
       throw new Error("blkProg: 不認得的敘述 "+JSON.stringify(s));
     }
@@ -131,6 +139,10 @@ const BLKP=(()=>{
     // 函式放在右邊
     const params=new Set();
     defs.forEach((d,i)=>{
+      if(sc){   // Scratch：「定義 名字」積木，參數積木讀檔時會自己長出來
+        cur=new Set(d.params);const b={type:"scratch_function_definition",x:520,y:40+i*260,extraState:fmut(d),inputs:{}};
+        const st=chain(d.body);if(st)b.inputs.STACK={block:st};cur=new Set();tops.push(b);return;
+      }
       d.params.forEach(p=>{params.add(p);if(!vars.has(p))vars.set(p,"")});
       const b={type:d.ret===undefined?"procedures_defnoreturn":"procedures_defreturn",x:sc?520:560,y:40+i*260,fields:{NAME:d.name},
         extraState:{params:d.params.map(p=>({name:p,id:vid(p)}))},inputs:{}};

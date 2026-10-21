@@ -20,6 +20,14 @@ function blkRun(src,input){
   const varInfo=new Map((J.variables||[]).map(v=>[v.id,v]));
   const scratch=tops.some(b=>/^(event_|scratch_)/.test(b.type));
   const procs=new Map();tops.filter(b=>b.type==="procedures_defnoreturn"||b.type==="procedures_defreturn").forEach(b=>procs.set(b.fields&&b.fields.NAME,b));
+  // Scratch 模式的自訂積木（scratch_function_*）：名字和參數記在 extraState 的 <mutation name="…"><arg name="…" type="…"/></mutation> 裡
+  const xmlUn=s=>s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&amp;/g,"&");
+  const attr=(tag,n)=>{const m=new RegExp("\\b"+n+'="([^"]*)"').exec(tag);return m?xmlUn(m[1]):null};
+  const fnInfo=b=>{const x=typeof b.extraState==="string"?b.extraState:"",head=/<mutation\b[^>]*>/.exec(x),ps=[],re=/<arg\b[^>]*>/g;let a;
+    while((a=re.exec(x))){const n=attr(a[0],"name");if(n!==null)ps.push({name:n,type:attr(a[0],"type")||"NumberString"})}
+    return{name:(head&&attr(head[0],"name"))??((b.fields&&b.fields.NAME)||""),params:ps}};
+  const sfns=new Map();tops.filter(b=>b.type==="scratch_function_definition").forEach(b=>sfns.set(fnInfo(b).name,b));
+  const isDef=b=>/^procedures_def/.test(b.type)||b.type==="scratch_function_definition";
   let starts;
   if(scratch){
     starts=tops.filter(b=>b.type==="event_whenflagclicked");
@@ -27,7 +35,7 @@ function blkRun(src,input){
       :tx("找不到「當 🏁 被點擊」。程式要從這一塊開始，請到「事件」把它拉進工作區，下面接上要執行的積木。","Cannot find \"when 🏁 clicked\". The program starts from this block: drag it in from Events and put your blocks under it."));
   }else{
     // Blockly 模式：最上層的積木照位置由上而下（跟 Blockly 產生程式的順序一樣）
-    starts=tops.filter(b=>!/^procedures_def/.test(b.type)).sort((a,c)=>(a.y||0)-(c.y||0)||(a.x||0)-(c.x||0));
+    starts=tops.filter(b=>!isDef(b)).sort((a,c)=>(a.y||0)-(c.y||0)||(a.x||0)-(c.x||0));
     if(!starts.length)return errOnly(tx("工作區裡還沒有積木。從左邊的分類把積木拖進來。","There are no blocks yet. Drag blocks in from the categories on the left."));
   }
   // ---------- 狀態 ----------
@@ -96,6 +104,7 @@ function blkRun(src,input){
       case"scratch_list_length":return`${tx("清單","list")} ${vname(b,"LIST")} ${tx("的長度","length")}`;
       case"scratch_list_contain":return`${tx("清單","list")} ${vname(b,"LIST")} ${tx("包含","contains")} ${I("ITEM")}`;
       case"scratch_length":return`${tx("取得","length of")} ${I("VALUE")} ${tx("的長度","")}`.trim();
+      case"scratch_function_param":return fnParam(b);
       case"procedures_callreturn":return`${b.extraState&&b.extraState.name}(${((b.extraState&&b.extraState.params)||[]).map((p,i)=>I("ARG"+i)).join(", ")})`;
     }
     return tx("［積木］","[block]");
@@ -187,6 +196,10 @@ function blkRun(src,input){
       case"lists_split":{const x=I("INPUT"),dl=jsStr(I("DELIM"));return F(b,"MODE")==="JOIN"?(x||[]).map(jsStr).join(dl):jsStr(x).split(dl)}
       case"lists_reverse":return(I("LIST")||[]).slice().reverse();
       case"procedures_callreturn":return call(b,true);
+      // Scratch 的自訂積木的參數：拿「正在執行的那一個定義」的值
+      case"scratch_function_param":{const n=fnParam(b),i=frames.length-1;
+        if(i>=0&&frames[i].scratch&&frames[i].vars.has(n)){S.read.add("p"+i+":"+n);return frames[i].vars.get(n)}
+        note(tx(`⚠ 參數「${e(n)}」只能用在它自己的「定義」積木裡面，這裡拿到的是 0。`,`⚠ The input "${e(n)}" can only be used inside its own "define" block. Here it is 0.`));return 0}
     }
     throw{rt:tx(`這個網頁還不支援「${e(b.type)}」這種積木。`,`This page does not support the block "${e(b.type)}" yet.`),b};
   }
@@ -266,6 +279,7 @@ function blkRun(src,input){
         snap(b,tx(`${m==="INSERT"?"插入":"設定"}清單的第 ${k} 項為 ${show(v)}。`,`${m==="INSERT"?"Insert":"Set"} item ${k} of the list to ${show(v)}.`));return}
       case"lists_getIndex":{listIndex(b,false);snap(b,tx("移除清單的一項。","Remove an item from the list."));return}
       case"procedures_callnoreturn":call(b,false);return;
+      case"scratch_function_call":scall(b);return;
       case"procedures_ifreturn":{const ok=truthy(ev(I("CONDITION")));
         snap(b,tx(`如果 〈${e(blkSrc(I("CONDITION")))}〉 就回傳：${ok?"成立，回傳":"不成立，繼續往下"}。`,`If 〈${e(blkSrc(I("CONDITION")))}〉 return: ${ok?"true, so return":"false, so keep going"}.`));
         if(ok)throw{ret:true,v:I("VALUE")?ev(I("VALUE")):undefined};return}
@@ -290,10 +304,27 @@ function blkRun(src,input){
     snap(b,tx(`函式 <b>${e(nm)}</b> 做完了，回到呼叫它的地方`+(wantValue?`，帶回 ${show(ret)}`:"")+"。",`<b>${e(nm)}</b> is done. Go back to where it was called`+(wantValue?`, with ${show(ret)}`:"")+"."));
     return ret;
   }
+  // ---------- Scratch 的自訂積木（沒有回傳值） ----------
+  function fnParam(b){const x=typeof b.extraState==="string"?/<mutation\b[^>]*>/.exec(b.extraState):null;return(x&&attr(x[0],"name"))??String(F(b,"PARAM_NAME")??"")}
+  function scall(b){
+    const nm=fnInfo(b).name,D=sfns.get(nm);
+    if(!D)throw{rt:tx(`找不到「定義 ${e(nm)}」積木。`,`Cannot find the block "define ${e(nm)}".`),b};
+    if(frames.length>=60)throw{rt:tx("自訂積木一層呼叫一層，已經超過 60 層了！如果是遞迴，檢查有沒有停下來的條件。","Custom blocks call each other more than 60 levels deep! If it is recursion, check the stopping condition."),b};
+    const ps=fnInfo(D).params.filter(p=>p.type!=="Label");
+    const args=ps.map(p=>{const x=inputOf(b,p.name);return x?ev(x):p.type==="Boolean"?false:""});
+    const m=new Map();ps.forEach((p,i)=>{m.set(p.name,cp(args[i]));S.changed.add("p"+frames.length+":"+p.name)});
+    const with_=ps.length?tx(`，${ps.map((p,i)=>`${e(p.name)} = ${show(args[i])}`).join("、")}`,`, with ${ps.map((p,i)=>`${e(p.name)} = ${show(args[i])}`).join(", ")}`):"";
+    snap(b,tx(`呼叫自訂積木 <b>${e(nm)}</b>`+with_+"。",`Call the custom block <b>${e(nm)}</b>`+with_+"."));
+    frames.push({label:nm,vars:m,scratch:true});
+    snap(D,tx(`跳到「定義 <b>${e(nm)}</b>」，從它下面的積木開始執行。`,`Jump to "define <b>${e(nm)}</b>" and run the blocks under it.`));
+    try{runStack(inputOf(D,"STACK"))}catch(x){frames.pop();throw x}
+    frames.pop();
+    snap(b,tx(`自訂積木 <b>${e(nm)}</b> 做完了，回到呼叫它的地方，接著往下。`,`The custom block <b>${e(nm)}</b> is done. Go back to where it was called and go on.`));
+  }
   // ---------- 開始 ----------
   try{
     if(scratch){
-      const loose=tops.filter(b=>b!==starts[0]&&!/^procedures_def/.test(b.type)).length;
+      const loose=tops.filter(b=>b!==starts[0]&&!isDef(b)).length;
       if(loose)note(tx(`ℹ 有 ${loose} 串積木沒有接在「當 🏁 被點擊」下面，它們不會執行。`,`ℹ ${loose} block stack(s) are not under "when 🏁 clicked", so they will not run.`));
       snap(starts[0],tx("綠旗被點擊：從「當 🏁 被點擊」下面的積木開始，<b>由上而下</b>一塊一塊執行。","The green flag is clicked: start from the blocks under \"when 🏁 clicked\" and run them one by one, <b>from top to bottom</b>."));
       runStack(starts[0].next&&starts[0].next.block);

@@ -23,6 +23,7 @@ function blkMount(L){
   const area=document.getElementById("codeArea");
   if(!blkReady()){area.innerHTML=`<div class="blk-fail">${T("積木編輯器載入失敗。這個課程需要連上網路（從 jsDelivr 載入 Blockly），請檢查網路後重新整理。","The block editor failed to load. This course needs the Internet (Blockly is loaded from jsDelivr). Check your connection and reload.")}</div>`;blkActions();return}
   blkDefine();
+  if(BLKV.ro){BLKV.ro.disconnect();BLKV.ro=null}
   if(BLKV.ws){BLKV.ws.dispose();BLKV.ws=null}
   area.innerHTML=`<div id="blkWs" class="blk-ws"></div>`;
   const look=BLKV.look;
@@ -32,11 +33,11 @@ function blkMount(L){
   blkRegister(ws,look);
   BLKV.ws=ws;BLKV.lid=L.id;BLKV.loading=true;
   try{const j=ST.code&&ST.code.trim()?JSON.parse(ST.code):{};Blockly.serialization.workspaces.load(j,ws)}catch(e){console.warn(e)}
-  try{ST.code=JSON.stringify(Blockly.serialization.workspaces.save(ws))}catch(e){}   // 換成 Blockly 存檔的樣子（每塊積木都有編號，執行時才能讓它亮起來）
+  try{ST.code=JSON.stringify(blkSave(ws))}catch(e){}   // 換成 Blockly 存檔的樣子（每塊積木都有編號，執行時才能讓它亮起來）
   BLKV.loading=false;BLKV.dirty=false;
   ws.addChangeListener(ev=>{
     if(BLKV.loading||ev.isUiEvent)return;
-    const now=JSON.stringify(Blockly.serialization.workspaces.save(ws));
+    const now=JSON.stringify(blkSave(ws));
     if(now===ST.code)return;   // 載入積木時晚到的通知：內容沒變，不算改過
     ST.code=now;
     try{localStorage.setItem("blkviz-code-"+L.id+"-"+look,ST.code)}catch(e){}
@@ -46,13 +47,30 @@ function blkMount(L){
   });
   blkActions();
   setTimeout(()=>Blockly.svgResize(ws),0);
+  // 程式碼區變大變小（拖分隔線、收合目錄、視窗改變）時，工作區跟著重畫成新的大小
+  if(typeof ResizeObserver!=="undefined"){BLKV.ro=new ResizeObserver(()=>{if(BLKV.ws===ws)Blockly.svgResize(ws)});BLKV.ro.observe(document.getElementById("blkWs"))}
 }
 addEventListener("resize",()=>{if(BLKV.ws)Blockly.svgResize(BLKV.ws)});
+// 頁面文字裡的 🏁（說明、標籤、說明框……）都換成積木上那一面綠旗，不然瀏覽器會畫成黑白格子旗
+function blkFlags(root){
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.nodeValue.includes("🏁")&&!n.parentElement.closest("svg,textarea,input,script,style,title")?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});
+  const list=[];while(w.nextNode())list.push(w.currentNode);
+  list.forEach(n=>{
+    const f=document.createDocumentFragment();
+    n.nodeValue.split("🏁").forEach((t,i)=>{if(i){const im=document.createElement("img");im.className="blk-flag";im.src=BLK_FLAG;im.alt="🏁";f.appendChild(im)}if(t)f.appendChild(document.createTextNode(t))});
+    n.replaceWith(f);
+  });
+}
+addEventListener("DOMContentLoaded",()=>{
+  if(typeof COURSE==="undefined"||COURSE!=="blk")return;
+  blkFlags(document.body);
+  new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)blkFlags(n);else if(n.nodeType===3&&n.parentElement)blkFlags(n.parentElement)}))).observe(document.body,{childList:true,subtree:true});
+});
 // 「積木」標題列上的按鈕：🏁 執行、Scratch / Blockly、還原
 function blkActions(){
   const acts=document.getElementById("editActions");if(!acts)return;
   const L=ST.L,look=BLKV.look,edited=!!blkSaved(L,look);   // 學生動過積木才會存下來
-  acts.innerHTML=`<button class="small-btn run" id="blkRun">🏁 ${T("執行","Run")}</button>`+
+  acts.innerHTML=`<button class="small-btn run" id="blkRun"><img class="blk-flag" src="${BLK_FLAG}" alt=""> ${T("執行","Run")}</button>`+
     `<span class="blk-looks"><button class="small-btn" data-look="scratch" aria-pressed="${look==="scratch"}">Scratch</button><button class="small-btn" data-look="blockly" aria-pressed="${look==="blockly"}">Blockly</button></span>`+
     (edited?`<button class="small-btn" id="blkRestore" title="${T("回到這一課一開始的積木","Go back to this lesson's starting blocks")}">${T("還原","Restore")}</button>`:"");
   document.getElementById("blkRun").onclick=blkGo;
@@ -68,7 +86,7 @@ function blkActions(){
 // 🏁：用目前的積木重新執行，跳到最後（看得到輸出和判題）；想看過程，按「重來」再「下一步」
 function blkGo(){
   stop();BLKV.dirty=false;
-  if(BLKV.ws)ST.code=JSON.stringify(Blockly.serialization.workspaces.save(BLKV.ws));   // 直接拿工作區現在的積木（改變的通知會晚一點才到）
+  if(BLKV.ws)ST.code=JSON.stringify(blkSave(BLKV.ws));   // 直接拿工作區現在的積木（改變的通知會晚一點才到）
   if(ST.L.tests&&picks().length)runPicked();else{ST.ran=false;ST.results={};rerun()}
   go(ST.trace.length,false);blkActions();
 }
