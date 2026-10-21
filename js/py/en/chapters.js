@@ -1,0 +1,25 @@
+/* ---------- Python 課的英文：第 6 章以後的章名（還沒做的章節連大綱 soon 一起） ---------- */
+Object.assign(PY_CH_EN,{
+6:{title:"Strings, dict, and set"},
+7:{title:"Two-Dimensional Lists"},
+8:{title:"Functions"},
+9:{title:"Recursion"},
+10:{title:"Names and Objects (a short chapter in place of C++ pointers)"},
+11:{title:"class and Linked Lists (in place of struct)"},
+12:{title:"Stack"},
+13:{title:"Queue"},
+14:{title:"Complexity, Divide and Conquer, and Sorting"},
+15:{title:"Searching"},
+16:{title:"Trees"},
+17:{title:"Graphs (1): Storing and Traversing Graphs"},
+18:{title:"Brute Force"},
+19:{title:"Greedy Algorithms"},
+20:{title:"Dynamic Programming"},
+21:{title:"Graphs (2): Spanning Trees and Shortest Paths"},
+22:{title:"Prefix Sums and Difference Arrays"},
+23:{title:"Two Pointers"},
+24:{title:"Sliding Windows"},
+25:{title:"Big Numbers: Built into Python, and How Other Languages Do It",soon:["Python ints have no limit","Column addition with a list (why C++ needs to write it yourself)"]},
+26:{title:"More Graph Theory",soon:["Topological sort and finding cycles","Bellman-Ford","Checking for bipartite graphs","Maximum flow","Maximum matching"]},
+27:{title:"Python Speed and TLE",soon:["Why the same algorithm is slower in Python than in C++","sys.stdin.readline: reading a lot of input","deque and built-in functions: use built-ins when you can","Turning recursion into loops: avoiding the depth limit","Counter: a dict for counting"]}
+});

@@ -14,13 +14,13 @@ function zRect(el,z){const r=el.getBoundingClientRect();return{left:r.left/z,rig
 /* ---------- 記憶體區：左邊是名字，右邊是物件，箭頭表示「這個名字貼在哪個物件上」 ---------- */
 function renderPyMem(s,flash){
   const box=document.getElementById("mem"),leg=document.getElementById("memLegend");
-  if(!s||!s.py||!s.py.names.length&&!(s.py.dead||[]).length){box.innerHTML=`<div class="empty">還沒有任何名字（變數）</div>`;leg.textContent="";return}
+  if(!s||!s.py||!s.py.names.length&&!(s.py.dead||[]).length){box.innerHTML=(ENG()?`<div class="empty">No names (variables) yet</div>`:`<div class="empty">還沒有任何名字（變數）</div>`);leg.textContent="";return}
   const P=s.py,ch=new Set(P.changed),rd=new Set(P.read),fresh=new Set(P.fresh);
   const e=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const nameDiv=n=>`<div class="pyname${flash&&ch.has(n.key)?" flash":""}${rd.has(n.key)?" rd":""}" data-ref="${n.ref}">${e(n.name)}</div>`;
   // 有呼叫函式的時候，名字分成一層一層（呼叫堆疊）：最下面是全域，最上面是正在執行的函式
-  const FR=P.frames||[{label:"全域",names:P.names}];
-  const names=FR.length>1?FR.map((F,d)=>F.gap?`<div class="pyframe gap">⋯ 中間還有 ${F.gap} 層，先不畫 ⋯</div>`:`<div class="pyframe${d===FR.length-1?" cur":""}">${d===0?"全域":`${e(F.label)} 第 ${F.depth+1} 層${d===FR.length-1?"・執行中":""}`}</div>`+F.names.map(nameDiv).join("")).join(""):FR[0].names.map(nameDiv).join("");
+  const FR=P.frames||[{label:(ENG()?"global":"全域"),names:P.names}];
+  const names=FR.length>1?FR.map((F,d)=>F.gap?(ENG()?`<div class="pyframe gap">⋯ ${F.gap} more levels in between are not drawn ⋯</div>`:`<div class="pyframe gap">⋯ 中間還有 ${F.gap} 層，先不畫 ⋯</div>`):(ENG()?`<div class="pyframe${d===FR.length-1?" cur":""}">${d===0?"global":`${e(F.label)} level ${F.depth+1}${d===FR.length-1?" · running":""}`}</div>`:`<div class="pyframe${d===FR.length-1?" cur":""}">${d===0?"全域":`${e(F.label)} 第 ${F.depth+1} 層${d===FR.length-1?"・執行中":""}`}</div>`)+F.names.map(nameDiv).join("")).join(""):FR[0].names.map(nameDiv).join("");
   const cellCh=new Set(P.cells||[]),cellRd=new Set(P.cellRead||[]);
   // 課程的 markers：{a:["i"]} → 在 list a 的第 i 格下面標 i（跟 C++ 一樣）
   const intOf=nm=>{const n=P.names.find(x=>x.name===nm);if(!n)return null;const o=P.objs.find(x=>x.id===n.ref);return o&&o.t==="int"?+o.repr:null};
@@ -29,28 +29,28 @@ function renderPyMem(s,flash){
   const hit=k=>(flash&&cellCh.has(k)?" flash":"")+(cellRd.has(k)?" rd":"");
   // 一排格子：list、tuple、set、字串都用這個畫；set 沒有順序，不寫索引
   const row=(o,vals,idx)=>vals.length?vals.map((v,i)=>`<div class="cell${i===vals.length-1?" last":""}"><div class="cv${hit(o.id+":"+i)}">${e(v)}</div><div class="ci">${idx?`[${i}]`:"&nbsp;"}</div>${idx?`<div class="mk">${markAt(o,i,vals.length)}</div>`:""}</div>`).join("")
-    :`<div class="cell last"><div class="cv" style="min-width:4em">空的</div><div class="ci">&nbsp;</div></div>`;
+    :(ENG()?`<div class="cell last"><div class="cv" style="min-width:4em">empty</div><div class="ci">&nbsp;</div></div>`:`<div class="cell last"><div class="cv" style="min-width:4em">空的</div><div class="ci">&nbsp;</div></div>`);
   const obj=o=>{
     const fl=flash&&fresh.has(o.id)?" flash":"";
     if(o.kv){  // dict：一列一項，左邊是鍵、右邊是值
-      const rows=o.kv.length?o.kv.map((x,i)=>`<div class="kvr${hit(o.id+":"+i)}"><div class="kk">${e(x.k)}</div><div class="kar">→</div><div class="kvv">${e(x.v)}</div></div>`).join(""):`<div class="kvr"><div class="kk">空的</div></div>`;
-      return`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">dict・${o.kv.length} 項（鍵 → 值）</div><div class="kvt">${rows}</div></div>`;
+      const rows=o.kv.length?o.kv.map((x,i)=>`<div class="kvr${hit(o.id+":"+i)}"><div class="kk">${e(x.k)}</div><div class="kar">→</div><div class="kvv">${e(x.v)}</div></div>`).join(""):(ENG()?`<div class="kvr"><div class="kk">empty</div></div>`:`<div class="kvr"><div class="kk">空的</div></div>`);
+      return(ENG()?`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">dict · ${o.kv.length} items (key → value)</div><div class="kvt">${rows}</div></div>`:`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">dict・${o.kv.length} 項（鍵 → 值）</div><div class="kvt">${rows}</div></div>`);
     }
     if(o.t==="list"&&o.items.length&&o.items.every(x=>x.t==="list"))return grid(o,fl);
     if(o.items&&o.items.some(x=>x.oref))  // list 裡放的是物件：每一格畫一個箭頭
-      return`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)}・${o.items.length} 個</div><div class="arr">${o.items.map((x,i)=>`<div class="cell${i===o.items.length-1?" last":""}"><div class="cv${hit(o.id+":"+i)}">${x.oref?`<span class="pdot pref" data-ref="${x.oref}"></span>`:e(x.repr)}</div><div class="ci">[${i}]</div></div>`).join("")}</div></div>`;
+      return(ENG()?`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)} · ${o.items.length} items</div><div class="arr">${o.items.map((x,i)=>`<div class="cell${i===o.items.length-1?" last":""}"><div class="cv${hit(o.id+":"+i)}">${x.oref?`<span class="pdot pref" data-ref="${x.oref}"></span>`:e(x.repr)}</div><div class="ci">[${i}]</div></div>`).join("")}</div></div>`:`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)}・${o.items.length} 個</div><div class="arr">${o.items.map((x,i)=>`<div class="cell${i===o.items.length-1?" last":""}"><div class="cv${hit(o.id+":"+i)}">${x.oref?`<span class="pdot pref" data-ref="${x.oref}"></span>`:e(x.repr)}</div><div class="ci">[${i}]</div></div>`).join("")}</div></div>`);
     if(o.items){
       const set=o.t==="set";
-      return`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)}・${o.items.length} 個${set?"（沒有順序）":""}</div><div class="arr">${row(o,o.items.map(x=>x.repr),!set)}</div></div>`;
+      return(ENG()?`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)} · ${o.items.length} items${set?" (no order)":""}</div><div class="arr">${row(o,o.items.map(x=>x.repr),!set)}</div></div>`:`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)}・${o.items.length} 個${set?"（沒有順序）":""}</div><div class="arr">${row(o,o.items.map(x=>x.repr),!set)}</div></div>`);
     }
     if(o.fields){  // 自己用 class 做的物件：一列一個屬性；指著別的物件的屬性畫成箭頭
-      const rows=o.fields.length?o.fields.map((f,i)=>`<div class="fld${hit(o.id+":"+i)}"><span class="fk">${e(f.k)}</span><span class="fv">${f.ref?`<span class="pdot pref" data-ref="${f.ref}"></span>`:e(f.v)}</span></div>`).join(""):`<div class="fld"><span class="fk">（還沒有屬性）</span></div>`;
-      return`<div class="pyobj inst${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)} 物件</div><div class="flds">${rows}</div></div>`;
+      const rows=o.fields.length?o.fields.map((f,i)=>`<div class="fld${hit(o.id+":"+i)}"><span class="fk">${e(f.k)}</span><span class="fv">${f.ref?`<span class="pdot pref" data-ref="${f.ref}"></span>`:e(f.v)}</span></div>`).join(""):(ENG()?`<div class="fld"><span class="fk">(no attributes yet)</span></div>`:`<div class="fld"><span class="fk">（還沒有屬性）</span></div>`);
+      return(ENG()?`<div class="pyobj inst${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)} object</div><div class="flds">${rows}</div></div>`:`<div class="pyobj inst${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)} 物件</div><div class="flds">${rows}</div></div>`);
     }
     if(o.t==="class")return`<div class="pyobj${fl}" data-oid="${o.id}"><div class="pytag">class</div><div class="pyval pyfn">${e(o.sig)}</div></div>`;
     if(o.t==="func")return`<div class="pyobj${fl}" data-oid="${o.id}"><div class="pytag">function</div><div class="pyval pyfn">${e(o.sig||o.repr)}</div></div>`;
     if(o.chars&&ST.L.strCells&&o.chars.length)  // 教字串的課：把字串畫成一格一個字
-      return`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">str・${o.chars.length} 個字</div><div class="arr">${row(o,o.chars.map(c=>c===" "?"␣":c),true)}</div></div>`;
+      return(ENG()?`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">str · ${o.chars.length} characters</div><div class="arr">${row(o,o.chars.map(c=>c===" "?"␣":c),true)}</div></div>`:`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">str・${o.chars.length} 個字</div><div class="arr">${row(o,o.chars.map(c=>c===" "?"␣":c),true)}</div></div>`);
     return`<div class="pyobj${fl}" data-oid="${o.id}"><div class="pytag">${e(o.tn)}</div><div class="pyval">${e(o.repr)}</div></div>`;
   };
   /* 二維 list：外層一格一列，每一格用箭頭指向那一列的 list。
@@ -70,10 +70,10 @@ function renderPyMem(s,flash){
       // 這一列的第幾格要標記：找出「列的標記指著這一列」的那幾組 r、c
       const cols=new Map();rm.forEach((m,k)=>{if(at(intOf(m),R)!==i||!cm[k])return;const j=at(intOf(cm[k]),ro.items.length);if(j===null)return;cols.set(j,[...(cols.get(j)||[]),cm[k]])});
       const cells=ro.items.length?ro.items.map((y,j)=>`<div class="cell${j===ro.items.length-1?" last":""}"><div class="cv${hit(ro.id+":"+j)}">${e(y.repr)}</div><div class="ci">[${j}]</div><div class="mk">${e((cols.get(j)||[]).join(","))}</div></div>`).join("")
-        :`<div class="cell last"><div class="cv" style="min-width:4em">空的</div><div class="ci">&nbsp;</div></div>`;
+        :(ENG()?`<div class="cell last"><div class="cv" style="min-width:4em">empty</div><div class="ci">&nbsp;</div></div>`:`<div class="cell last"><div class="cv" style="min-width:4em">空的</div><div class="ci">&nbsp;</div></div>`);
       html+=`<div class="pyobj seq g2row${flash&&fresh.has(ro.id)?" flash":""}" data-oid="${ro.id}"><div class="arr">${cells}</div></div>`;
     });
-    return`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">list・${R} 列（每一格指著一列）</div><div class="g2">${html}</div></div>`;
+    return(ENG()?`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">list · ${R} rows (each box points to a row)</div><div class="g2">${html}</div></div>`:`<div class="pyobj seq${fl}" data-oid="${o.id}"><div class="pytag">list・${R} 列（每一格指著一列）</div><div class="g2">${html}</div></div>`);
   }
   // 只畫有名字直接指著的物件；list 裡面的東西直接寫在格子裡
   const top=new Set(FR.flatMap(F=>F.names.map(n=>n.ref)));
@@ -94,9 +94,9 @@ function renderPyMem(s,flash){
       return`<div class="tnode" style="left:${q.x*DX}px;top:${q.d*DY}px"><div class="pyobj tn${flash&&fresh.has(o.id)?" flash":""}" data-oid="${o.id}"><div class="arr">${cells}</div></div></div>`}).join("")}</div>`;
   }
   const objs=P.objs.filter(o=>top.has(o.id)&&!inTree.has(o.id)).map(obj).join("");
-  const dead=(P.dead||[]).length?`<div class="pydead">🗑 回收：${P.dead.map(e).join("、")}（沒有名字指著了）</div>`:"";
-  box.innerHTML=`<div class="pymem"><div class="pycol"><div class="pyhead">名字（變數）</div>${names}</div><div class="pycol objs"><div class="pyhead">物件（資料）</div>${objs}</div>${treeHTML?`<div class="pytreerow"><div class="pyhead">樹（物件的 left、right）</div>${treeHTML}</div>`:""}</div>${dead}`;
-  leg.textContent="箭頭＝這個名字貼在哪個物件上。"+(P.changed.length||P.fresh.length?"閃黃＝這一步新貼上的名字、新做出來的物件。":"")+(P.read.length?"藍框＝這一步讀取的名字。":"");
+  const dead=(P.dead||[]).length?(ENG()?`<div class="pydead">🗑 Thrown away: ${P.dead.map(e).join(", ")} (no name points to it anymore)</div>`:`<div class="pydead">🗑 回收：${P.dead.map(e).join("、")}（沒有名字指著了）</div>`):"";
+  box.innerHTML=(ENG()?`<div class="pymem"><div class="pycol"><div class="pyhead">Names (variables)</div>${names}</div><div class="pycol objs"><div class="pyhead">Objects (data)</div>${objs}</div>${treeHTML?`<div class="pytreerow"><div class="pyhead">Tree (the left and right of objects)</div>${treeHTML}</div>`:""}</div>${dead}`:`<div class="pymem"><div class="pycol"><div class="pyhead">名字（變數）</div>${names}</div><div class="pycol objs"><div class="pyhead">物件（資料）</div>${objs}</div>${treeHTML?`<div class="pytreerow"><div class="pyhead">樹（物件的 left、right）</div>${treeHTML}</div>`:""}</div>${dead}`);
+  leg.textContent=(ENG()?"Arrow = which object this name is stuck on.":"箭頭＝這個名字貼在哪個物件上。")+(P.changed.length||P.fresh.length?(ENG()?" Yellow flash = a name newly stuck on, or an object newly made, in this step.":"閃黃＝這一步新貼上的名字、新做出來的物件。"):"")+(P.read.length?(ENG()?" Blue box = a name read in this step.":"藍框＝這一步讀取的名字。"):"");
   // list 太長的時候，橫向捲到這一步有動到（或有標記）的那一格
   box.querySelectorAll(".pyobj .arr").forEach(a=>{
     if(a.scrollWidth<=a.clientWidth)return;
