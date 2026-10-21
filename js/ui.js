@@ -693,5 +693,5 @@ $("langBtn").onclick=()=>{LANG=LANG==="en"?"zh":"en";store.set("ckviz-lang",LANG
   if(COURSE==="blk"){location.reload();return}   // 積木的文字在載入時決定，換語言要重新載入
   setNavHidden(document.querySelector(".app").classList.contains("nav-hidden"));renderNav();openLesson(ST.L.id)};
 setLangBtn();
-openLesson(store.get(SK+"last","0-1"));setMode("cpp");
+openLesson(new URLSearchParams(location.search).get("lesson")||store.get(SK+"last","0-1"))   /* 網址有 lesson=5-3 就打開那一課（tests.html 的連結用） */;setMode("cpp");
 

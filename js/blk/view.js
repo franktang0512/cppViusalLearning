@@ -119,7 +119,7 @@ function renderBlkMem(s,flash){
   const row=(name,a,key,ty)=>`<div><div class="arr-head"><div class="addr"></div><div class="meta"><span class="nm">${esc2(name)}</span> <span class="ty">${ty}・${T(`${a.length} 項`,`${a.length} items`)}</span></div></div>`+
     `<div class="arr">${a.length?a.map((x,i)=>cell(x,i+1,key+":"+i,i===a.length-1)).join(""):`<div class="cell last"><div class="cv${hit(key)}" style="min-width:5em">${T("空的","empty")}</div><div class="ci">&nbsp;</div></div>`}</div></div>`;
   const one=(name,v,key,ty)=>Array.isArray(v)?row(name,v,key,ty):
-    `<div class="var"><div class="addr"></div><div class="box${hit(key)}" style="--n:1"><span></span><div class="val${v===undefined?" g":""}">${esc2(fmt(v))}</div></div><div class="meta"><div class="nm">${esc2(name)}</div><div class="ty">${ty}</div></div></div>`;
+    `<div class="var"><div class="addr"></div><div class="box${hit(key)}" style="--n:${Math.max(1,Math.ceil((String(fmt(v)).length*12+16)/30))}"><div class="val${v===undefined?" g":""}">${esc2(fmt(v))}</div></div><div class="meta"><div class="nm">${esc2(name)}</div><div class="ty">${ty}</div></div></div>`;
   let h="";
   const asks=(ST.code||"").includes("event_askandwait")||(ST.code||"").includes("event_answer");
   if(B.scratch&&asks)h+=one(T("詢問的答案","answer"),B.answer,"answer",T("「詢問並等待」拿到的值","the value from \"ask and wait\""));

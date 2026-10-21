@@ -35,7 +35,7 @@ add2(2,[
   ask:T("C++ 要用 double 才能讀 -1.5；積木直接就可以。試試輸入 0.1 0.2，會說出什麼？","C++ needs double to read -1.5, but blocks can do it directly. Try the input 0.1 0.2. What is said?")},
  {id:"P7",...EX("P7"),isNew:T("多輸入、無條件捨去","Several inputs, round down"),...blkProg([ask("h"),ask("w"),set("h",div(v("h"),100)),set("bmi",div(v("w"),mul(v("h"),v("h")))),say(floor(v("bmi")))]),
   predict:T("bmi 算出來會剛好是整數嗎？","Is bmi exactly a whole number?"),
-  ask:T("如果題目要四捨五入到小數第 2 位，要怎麼改？（提示：2-6）","If the problem asks you to round to 2 decimal places, how do you change it? (Hint: 2-6)")}
+  ask:T("如果題目要四捨五入到小數第 2 位，要怎麼改？（提示：2-7）","If the problem asks you to round to 2 decimal places, how do you change it? (Hint: 2-7)")}
 ]);
 add2(3,[
  {id:"P8",...EX("P8"),isNew:T("如果……那麼","If … then"),...blkProg([ask("money"),set("total",v("money")),iff(lt(v("money"),499),[change("total",60)]),say(v("total"))]),

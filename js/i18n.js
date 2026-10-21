@@ -3,7 +3,11 @@
    課程的英文放在 js/lessons/en/ 底下，用課程編號對應：LESSON_EN["1-2"] = {title, goal, code, ...}。
    切換語言時，applyLang() 把每一課的欄位換成那個語言的版本（中文原文存在 L._zh），
    所以畫面的程式照樣讀 L.title、L.goal、L.code，不用改。還沒翻譯的課，英文版會顯示中文。 */
-let LANG=(()=>{try{return JSON.parse(localStorage.getItem("ckviz-lang"))==="en"?"en":"zh"}catch(e){return"zh"}})();
+// 自動檢查（tests.html → ?selftest=1）：從第一個 script 就開始記錄網頁的錯誤
+if(new URLSearchParams(location.search).has("selftest")){window.__selftestErrs=[];addEventListener("error",e=>__selftestErrs.push(e.message+" @"+String(e.filename||"").split("/").pop()+":"+e.lineno))}
+// 網址有 lang=en 或 lang=zh 就照網址（tests.html 自動檢查用），不然照瀏覽器記住的
+let LANG=(()=>{const q=new URLSearchParams(location.search).get("lang");if(q==="en"||q==="zh")return q;
+  try{return JSON.parse(localStorage.getItem("ckviz-lang"))==="en"?"en":"zh"}catch(e){return"zh"}})();
 const T=(zh,en)=>LANG==="en"&&en!=null?en:zh;
 const LESSON_EN={},CH_EN={};
 // Python 課的英文另外放（課程編號跟 C++ 一樣，會撞在一起）：js/py/en/。例題（example）的題目、表格、測資直接用 C++ 例題的英文

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自動檢查</title>
+<!-- 自動檢查：把 C++、Python、Scratch/Blockly 的每一課（中文、英文）都跑一遍，跟 tests-expected.js 記下的預期結果比對。
+     改了模擬器、課程、版面之後打開這一頁，看到「全部跟預期一樣」就可以放心。
+     某一課是故意改了結果：按最下面的「複製新的預期結果」，貼到 tests-expected.js 取代原本的內容。 -->
+<style>
+  :root{--bg:#f4f6f9;--panel:#fff;--ink:#16233a;--muted:#5b687b;--line:#d5dde7;--ok:#2b8a3e;--ok-bg:#ebfbee;--bad:#c92a2a;--bad-bg:#fff5f5;--run:#1971c2;--run-bg:#e7f5ff}
+  @media (prefers-color-scheme:dark){:root{--bg:#0e1624;--panel:#172238;--ink:#e3ebf5;--muted:#93a1b5;--line:#2a3a56;--ok:#69db7c;--ok-bg:#16301d;--bad:#ff8787;--bad-bg:#3a1d1d;--run:#74c0fc;--run-bg:#13293d}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif}
+  main{max-width:960px;margin:0 auto;padding:24px 16px 60px}
+  h1{margin:0 0 4px;font-size:1.6rem}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .run{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:12px}
+  .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .name{font-weight:700;min-width:12em}
+  .chip{border-radius:999px;padding:2px 12px;font-size:.9rem;font-weight:600}
+  .chip.wait{background:var(--line);color:var(--muted)}
+  .chip.running{background:var(--run-bg);color:var(--run)}
+  .chip.ok{background:var(--ok-bg);color:var(--ok)}
+  .chip.bad{background:var(--bad-bg);color:var(--bad)}
+  table{border-collapse:collapse;width:100%;margin-top:10px;font-size:.92rem}
+  th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  td code{font-family:ui-monospace,Consolas,monospace;font-size:.88rem;overflow-wrap:anywhere}
+  a{color:var(--run)}
+  details{margin-top:8px;color:var(--muted);font-size:.92rem}
+  details summary{cursor:pointer}
+  .help{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-top:24px}
+  .help h2{font-size:1.1rem;margin:0 0 6px}
+  textarea{width:100%;height:140px;font:12px/1.4 ui-monospace,Consolas,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px}
+  button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+  button:hover{border-color:var(--run)}
+  iframe{position:absolute;left:-10000px;top:0;width:1400px;height:900px;border:0}
+  @media (max-width:560px){.name{min-width:0}}
+</style>
+</head>
+<body>
+<main>
+  <h1>自動檢查</h1>
+  <p class="sub" id="sub">把每一課都跑一遍，跟預期的結果比對。需要網路（Scratch / Blockly 要從網路載入 Blockly）。</p>
+  <div id="runs"></div>
+  <div class="help">
+    <h2>結果怎麼看</h2>
+    <p style="margin:0 0 8px">每一課記下每一筆測資的結果：<b>AC</b>、<b>WA</b>（有預期輸出時的判題結果）、<b>ok</b>（沒有預期輸出、正常跑完），或錯誤的名字（例如 <b>IndexError</b>，故意示範錯誤的課就是這樣）。積木課的 Scratch、Blockly 兩種模式用「|」隔開。<br>
+    跟預期不一樣的課會列出來。如果是你故意改的（例如把一題改成要學生改到 AC），按下面的按鈕複製新的預期結果，貼到 <code>tests-expected.js</code> 取代原本的全部內容。</p>
+    <button id="copy" disabled>複製新的預期結果</button> <span id="copied" style="color:var(--muted)"></span>
+    <textarea id="snapshot" readonly placeholder="全部跑完以後，這裡會出現新的預期結果"></textarea>
+  </div>
+</main>
+<script src="tests-expected.js"></script>
+<script>
+const RUNS=[["cpp","zh","C++ 中文"],["cpp","en","C++ 英文"],["py","zh","Python 中文"],["py","en","Python 英文"],["blk","zh","Scratch / Blockly 中文"],["blk","en","Scratch / Blockly 英文"]];
+const EXP=typeof TEST_EXPECTED!=="undefined"?TEST_EXPECTED:null;
+const esc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const box=document.getElementById("runs"),got={};
+if(!EXP)document.getElementById("sub").insertAdjacentHTML("beforeend","<br><b>還沒有 tests-expected.js</b>：這次只會跑出結果，跑完以後把最下面的內容存成 tests-expected.js。");
+// 每一輪一個區塊
+const rows=RUNS.map(([c,l,name])=>{const d=document.createElement("section");d.className="run";
+  d.innerHTML=`<div class="head"><span class="name">${name}</span><span class="chip wait">等待中</span></div><div class="body"></div>`;box.appendChild(d);return d});
+const link=(c,l,id)=>`<a href="index.html?course=${c}&lang=${l}&lesson=${encodeURIComponent(id)}" target="_blank" rel="noopener">${esc(id)}</a>`;
+function show(k,msg){
+  const [c,l,name]=RUNS[k],d=rows[k],chip=d.querySelector(".chip"),body=d.querySelector(".body");
+  if(msg.fatal){chip.className="chip bad";chip.textContent="沒辦法檢查";body.innerHTML=`<p>${esc(msg.fatal)}</p>`;return 1}
+  const key=c+"/"+l,exp=EXP&&EXP[key],res=msg.results;got[key]=res;
+  const diff=[],added=[],removed=[];
+  for(const id in res){if(!exp)continue;if(!(id in exp))added.push(id);else if(exp[id]!==res[id])diff.push(id)}
+  if(exp)for(const id in exp)if(!(id in res))removed.push(id);
+  const bad=diff.length+msg.errs.length;
+  chip.className="chip "+(!exp?"wait":bad?"bad":"ok");
+  chip.textContent=!exp?`跑完 ${msg.total} 課（沒有預期結果可以比）`:bad?`${diff.length} 課跟預期不一樣${msg.errs.length?`、${msg.errs.length} 個網頁錯誤`:""}`:`全部跟預期一樣（${msg.total} 課）`;
+  let h="";
+  if(msg.errs.length)h+=`<table><tr><th>網頁錯誤</th></tr>${msg.errs.map(e=>`<tr><td><code>${esc(e)}</code></td></tr>`).join("")}</table>`;
+  if(diff.length)h+=`<table><tr><th>課</th><th>預期</th><th>這次</th></tr>${diff.map(id=>`<tr><td>${link(c,l,id)}</td><td><code>${esc(exp[id])}</code></td><td><code>${esc(res[id])}</code></td></tr>`).join("")}</table>`;
+  if(added.length)h+=`<details><summary>新的課（預期結果裡還沒有）：${added.length} 課</summary>${added.map(id=>link(c,l,id)+` <code>${esc(res[id])}</code>`).join("<br>")}</details>`;
+  if(removed.length)h+=`<details><summary>預期結果裡有、現在找不到的課：${removed.length} 課</summary>${removed.map(esc).join("、")}</details>`;
+  const zh=Object.keys(msg.zh||{});
+  if(zh.length)h+=`<details><summary>英文模式還有中文的課（只是提醒）：${zh.length} 課</summary>${zh.map(id=>link(c,l,id)+`：${esc(msg.zh[id].join("、"))}`).join("<br>")}</details>`;
+  body.innerHTML=h;return bad;
+}
+// 一輪一輪跑：開一個看不見的 index.html?selftest=1，等它把結果傳回來
+function runOne(k){
+  return new Promise(done=>{
+    const [c,l]=RUNS[k],chip=rows[k].querySelector(".chip");
+    chip.className="chip running";chip.textContent="跑……";
+    const f=document.createElement("iframe");f.src=`index.html?course=${c}&lang=${l}&selftest=1`;
+    let timer=setTimeout(()=>finish({fatal:"超過 3 分鐘還沒跑完"}),180000);
+    function onMsg(e){const m=e.data;if(!m||!m.selftest||m.course!==c||m.lang!==l)return;
+      if(m.progress!=null&&!m.done){chip.textContent=`跑…… ${m.progress} / ${m.total}`;return}
+      finish(m)}
+    function finish(m){clearTimeout(timer);removeEventListener("message",onMsg);f.remove();done(show(k,m))}
+    addEventListener("message",onMsg);document.body.appendChild(f);
+  });
+}
+(async()=>{
+  let bad=0;for(let k=0;k<RUNS.length;k++)bad+=await runOne(k);
+  const snap="/* 自動檢查的預期結果（tests.html 產生）：每一課每一筆測資的結果 */\nconst TEST_EXPECTED="+JSON.stringify(got,null,1)+";\n";
+  const ta=document.getElementById("snapshot");ta.textContent=snap;ta.value=snap;
+  const b=document.getElementById("copy");b.disabled=false;
+  b.onclick=async()=>{try{await navigator.clipboard.writeText(snap);document.getElementById("copied").textContent="已複製"}catch(e){ta.select();document.execCommand("copy");document.getElementById("copied").textContent="已複製"}};
+  document.title=(EXP?(bad?"✗ ":"✓ "):"")+"自動檢查";
+  document.body.dataset.done="1";
+})();
+</script>
+</body>
+</html>
