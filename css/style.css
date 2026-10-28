@@ -589,3 +589,7 @@ kbd{font-family:var(--mono);font-size:.8em;border:1px solid var(--line);border-b
    換到下一行的部分多縮排 2 格，看得出來是同一行。行號只在每一行的開頭出現一次 */
 .ln>span:last-child{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;padding-left:2ch;text-indent:-2ch}
 .ln .cm{display:inline-block;max-width:100%;text-indent:0;vertical-align:top}   /* 註解放不下就整段換到下一行，// 不會跟後面的字分開 */
+/* 積木課：Scratch 攤平的表格，畫成一列一列（js/blk/view.js 的 table） */
+.tbl-row{display:flex;align-items:flex-start;gap:6px}
+.tbl-row .tbl-lab{flex:none;width:4.4em;padding-top:12px;text-align:right;font-size:.78rem;color:var(--muted)}
+.tbl-row .arr{margin-left:0;overflow:visible}   /* 不要每一列各自捲：整張表一起左右捲（捲軸在記憶體區） */

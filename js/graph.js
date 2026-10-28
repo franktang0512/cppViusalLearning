@@ -18,7 +18,9 @@
      uf             並查集的 p 陣列：同一個老大的點同一個顏色；ufLinks:true 時再畫出 v → p[v] 的箭頭
      title          圖上面的標題（沒給就寫「圖（無向）」或「圖（有向）」）
      cur、nb        「現在在哪個點」「正在看哪個鄰居」的變數名稱
-     queue          queue / stack / vector 的名字（裡面放 pair {距離, 點} 時，看最後一個欄位），或 {arr, front, rear}（用陣列做的 queue） */
+     queue          queue / stack / vector 的名字（裡面放 pair {距離, 點} 時，看最後一個欄位），或 {arr, front, rear}（用陣列做的 queue）
+     labels         點上面寫這個陣列（清單）的第 k 項，不寫編號；沒有值的點不畫（積木課「樹存在清單裡」用）
+     heapTree       第 i 個點的孩子是第 2i、2i + 1 個（存在清單裡的二元樹、堆積），一層一層排好 */
 /* Python 課：把 Python 的快照換成上面那種變數格式（名字 → int / list / 二維 list），下面的畫法就能共用。
    二維 list 每一列一樣長就當成鄰接矩陣；課程寫 list:true 時，from 那個二維 list 當成鄰接串列。
    tuple (v, w) 當成「鄰居、長度」；queue 裡放 tuple 時看最後一個（例如 (距離, 點) 的點）。 */
@@ -48,19 +50,46 @@ function pyGraphSnap(t,G){
   }));
   return{...t,vars,changed:P.cells||[]};
 }
+/* 積木課：把積木的快照（變數、Scratch 的清單、函式的參數）換成上面那種變數格式。
+   清單從第 1 項開始，所以前面補一個空格：第 v 個點剛好對到清單的第 v 項（課程寫 base:1）。
+   from 是鄰接矩陣的時候：Scratch 攤平的清單（n × n 項）或 Blockly 清單裡放清單，都換成二維陣列。 */
+function blkGraphSnap(t,G){
+  if(!t||!t.blk)return t;
+  const B=t.blk,vars=[],n=G.n,base=G.base||0;
+  const num=x=>typeof x==="number"?x:typeof x==="string"&&x.trim()!==""&&!isNaN(+x)?+x:(x===undefined?null:x);
+  const matrix=(name,id,at)=>{const C=n+base,len=C*C,values=Array(len).fill(null),init=Array(len).fill(false);
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++){const x=at(r,c);if(x!==undefined){const k=(r+base)*C+c+base;values[k]=num(x);init[k]=true}}
+    return{name,id,dims:[C,C],len,init,values}};
+  const add=(name,id,val)=>{
+    if(Array.isArray(val)){
+      if(name===G.from&&val.length===n&&val.every(Array.isArray)){vars.push(matrix(name,id,(r,c)=>val[r][c]));return}
+      if(name===G.queue){vars.push({name,id,values:[val.map(num)]});return}
+      vars.push({name,id,isArr:true,len:val.length+1,init:[false,...val.map(()=>true)],values:[null,...val.map(num)]});return}
+    vars.push({name,id,init:[val!==undefined],values:[num(val)]});
+  };
+  B.vars.forEach(x=>add(x.name,"v:"+x.name,x.val));
+  B.lists.forEach(l=>{if(l.name===G.from&&l.items.length===n*n)vars.push(matrix(l.name,"l:"+l.name,(r,c)=>l.items[r*n+c]));else add(l.name,"l:"+l.name,l.items)});
+  (B.frames||[]).forEach((f,i)=>f.vars.forEach(x=>add(x.name,"p"+i+":"+x.name,x.val)));
+  // 「這一步改了第幾格」：清單的第 i 格（從 0 數）是第 i + 1 個點
+  const changed=(B.changed||[]).map(k=>{const m=String(k).match(/^(.*):(\d+)$/);return m?m[1]+":"+(+m[2]+1):k});
+  return{...t,vars,changed};
+}
 function renderGraph(L,s){
   const box=document.getElementById("graphBox"),G=L.graph;
   if(!G){box.hidden=true;box.innerHTML="";return}
   box.hidden=false;
   if(typeof COURSE!=="undefined"&&COURSE==="py")s=pyGraphSnap(s,G);
-  const vars=s?s.vars:[],base=G.base||0,n=G.n,nodes=Array.from({length:n},(_,i)=>base+i);
+  if(typeof COURSE!=="undefined"&&COURSE==="blk")s=blkGraphSnap(s,G);
+  const vars=s?s.vars:[],base=G.base||0,n=G.n;let nodes=Array.from({length:n},(_,i)=>base+i);
   const find=nm=>{let v=null;for(const x of vars)if(x.name===nm)v=x;return v};  // 同名時拿最新（最深那一層）的
   const scal=nm=>{const v=nm&&find(nm);return v&&!v.isArr&&v.init[0]&&typeof v.values[0]==="number"?v.values[0]:null};
   const arrAt=(nm,k)=>{const v=nm&&find(nm);if(!v)return null;
     if(v.isArr&&!v.dims)return k<v.len&&v.init[k]?v.values[k]:null;
     if(v.type==="vector"&&Array.isArray(v.values[0]))return v.values[0][k]??null;return null};
+  if(G.labels)nodes=nodes.filter(k=>{const v=arrAt(G.labels,k);return v!==null&&v!==undefined&&v!==""});
   // ---- 邊
   let edges=[],live=false;
+  if(G.heapTree){live=true;nodes.forEach(k=>[2*k,2*k+1].forEach(c=>{if(nodes.includes(c))edges.push([k,c])}))}
   const src=G.from;
   if(Array.isArray(src)){const a=find(src[0]),b=find(src[1]);
     if(a&&b){live=true;for(let i=0;i<Math.min(a.len,b.len);i++)if(a.init[i]&&b.init[i])edges.push([a.values[i],b.values[i]])}}
@@ -89,7 +118,9 @@ function renderGraph(L,s){
   const visV=G.visit&&find(G.visit),justVis=k=>visV&&changed.has(visV.id+":"+k);
   // ---- 位置
   const W=360,H=G.h||210,R=17;
+  const lv=k=>Math.floor(Math.log2(k)),depth=G.heapTree&&nodes.length?lv(Math.max(...nodes)):0;
   const P=nodes.map((k,i)=>{const p=G.pos&&G.pos[i];
+    if(G.heapTree&&!p){const l=lv(k),j=k-2**l;return[24+(j+0.5)/2**l*(W-48),24+(depth?l/depth:0)*(H-70)]}
     if(p)return[24+p[0]/100*(W-48),22+p[1]/100*(H-58)];
     const a=-Math.PI/2+2*Math.PI*i/n;return[W/2+Math.cos(a)*(W/2-50),(H-36)/2+8+Math.sin(a)*((H-36)/2-26)]});
   const at=k=>P[k-base];
@@ -120,7 +151,8 @@ function renderGraph(L,s){
     let cls="gn";
     if(ufOn){const b=boss(k);if(b!==null)cls+=" grp k"+(b%6)}else if(comp){const c=arrAt(G.comp,k);if(c)cls+=" grp k"+((c-1)%6)}else if(vis)cls+=" vis";
     if(inQ.has(k))cls+=" inq";if(onStack.has(k))cls+=" stk";if(k===cur)cls+=" cur";if(k===nb&&k!==cur)cls+=" nb";if(justVis(k))cls+=" pop";
-    svg+=`<g class="${cls}"><circle cx="${x}" cy="${y}" r="${R}"/><text x="${x}" y="${y+5}">${k}</text>`;
+    const lab=G.labels?String(arrAt(G.labels,k)).replace(/&/g,"&amp;").replace(/</g,"&lt;"):k;
+    svg+=`<g class="${cls}"><circle cx="${x}" cy="${y}" r="${R}"/><text x="${x}" y="${y+5}">${lab}</text>`;
     if(G.dist){const d=arrAt(G.dist,k);if(d!==null&&d>=0)svg+=`<text class="gd" x="${x}" y="${y+R+14}">${(ENG()&&G.distLabelEn)||G.distLabel||"d"}=${d>=1e9?"∞":d}</text>`}
     svg+=`</g>`;
   }

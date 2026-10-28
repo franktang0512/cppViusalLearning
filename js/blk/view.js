@@ -127,7 +127,14 @@ function renderBlkMem(s,flash){
   h+=B.vars.map(x=>one(x.name,x.val,"v:"+x.name,T("變數","variable"))).join("");
   B.frames.forEach((f,i)=>{h+=`<div class="grp fn">${T(`函式 ${esc2(f.label)} 的參數・第 ${i+1} 層${i===B.frames.length-1?"（正在執行）":""}`,`Inputs of ${esc2(f.label)} · level ${i+1}${i===B.frames.length-1?" (running)":""}`)}</div>`+
     (f.vars.map(x=>one(x.name,x.val,"p"+i+":"+x.name,T("參數","input"))).join("")||`<div class="empty">${T("（沒有參數）","(no inputs)")}</div>`)});
-  h+=B.lists.map(l=>row(l.name,l.items,"l:"+l.name,T("清單","list"))).join("");
+  // Scratch 攤平的表格（課程寫 tables:{清單名: 欄數或放欄數的變數名}）：清單還是一條，畫的時候每 cols 項折成一列；格子下面標的還是「第幾項」
+  const TB=(ST.L&&ST.L.tables)||{};
+  const colsOf=l=>{const sp=TB[l.name];if(sp==null||!B.scratch)return 0;const c=typeof sp==="number"?sp:Number((B.vars.find(x=>x.name===sp)||{}).val);return c>0&&l.items.length>=c?c:0};
+  const table=(name,a,key,cols)=>{let t=`<div><div class="arr-head"><div class="addr"></div><div class="meta"><span class="nm">${esc2(name)}</span> <span class="ty">${T(`清單・${a.length} 項，每 ${cols} 項排成一列`,`list · ${a.length} items, ${cols} per row`)}</span></div></div>`;
+    for(let r=0;r*cols<a.length;r++){const part=a.slice(r*cols,(r+1)*cols);
+      t+=`<div class="tbl-row"><span class="tbl-lab">${T(`第 ${r+1} 列`,`row ${r+1}`)}</span><div class="arr">${part.map((x,j)=>cell(x,r*cols+j+1,key+":"+(r*cols+j),j===part.length-1)).join("")}</div></div>`}
+    return t+"</div>"};
+  h+=B.lists.map(l=>{const c=colsOf(l);return c?table(l.name,l.items,"l:"+l.name,c):row(l.name,l.items,"l:"+l.name,T("清單","list"))}).join("");
   box.innerHTML=h||`<div class="empty">${T("還沒有變數或清單","No variables or lists yet")}</div>`;
   leg.textContent=!h?T("到「變數」、「清單」分類建立一個，就會出現在這裡。","Make one in the Variables or Lists category, and it will appear here."):
     T("閃黃＝這一步被改的格子，藍框＝這一步讀取的格子。清單從第 1 項開始數（C++ 的陣列從 [0] 開始）。","Yellow flash = changed in this step. Blue box = read in this step. List items start at 1 (C++ arrays start at [0]).");

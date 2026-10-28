@@ -63,8 +63,8 @@ setBlkLessons(8,[
 /* ---------- 第 9 章 二維表格 ---------- */
 setBlkLessons(9,[
  {id:"9-1",title:T("Scratch 攤平、Blockly 清單裡放清單","Scratch Flattens, Blockly Nests Lists"),isNew:T("第 r 列第 c 行怎麼存","How to store row r, column c"),
-  goal:T("表格有列有行。兩種模式的存法不一樣：\nScratch 模式：沒有「清單裡放清單」，所以把表格一列接一列攤平成一條清單。有 C 行的時候，第 r 列第 c 行是第 (r − 1) × C + c 項（C++ 7-9 也是這樣存）。\nBlockly 模式：清單裡可以放清單，表格的每一列是一條清單，先拿第 r 列，再拿那一列的第 c 項。\n這支程式做一個 2 列 3 行的表格，第 r 列第 c 行放 (r − 1) × 3 + c。切換兩種模式，比一比記憶體區。",
-    "A table has rows and columns. The two modes store it differently:\nScratch mode: there are no lists inside lists, so the table is flattened into one list, row after row. With C columns, row r, column c is item (r − 1) × C + c (C++ 7-9 stores tables this way too).\nBlockly mode: a list can hold lists, so each row of the table is a list. Take row r first, then item c of that row.\nThis program makes a table with 2 rows and 3 columns, and puts (r − 1) × 3 + c in row r, column c. Switch between the two modes and compare the Memory panels."),
+  goal:T("表格有列有行。兩種模式的存法不一樣：\nScratch 模式：沒有「清單裡放清單」，所以把表格一列接一列攤平成一條清單。有 C 行的時候，第 r 列第 c 行是第 (r − 1) × C + c 項（C++ 7-9 也是這樣存）。\nBlockly 模式：清單裡可以放清單，表格的每一列是一條清單，先拿第 r 列，再拿那一列的第 c 項。\n這支程式做一個 2 列 3 行的表格，第 r 列第 c 行放 (r − 1) × 3 + c。切換兩種模式，比一比記憶體區。\nScratch 模式的記憶體區為了好看，把這條清單每 3 項排成一列，畫成表格的樣子；格子下面的數字還是「清單的第幾項」，對照看看第幾列第幾行是第幾項。",
+    "A table has rows and columns. The two modes store it differently:\nScratch mode: there are no lists inside lists, so the table is flattened into one list, row after row. With C columns, row r, column c is item (r − 1) × C + c (C++ 7-9 stores tables this way too).\nBlockly mode: a list can hold lists, so each row of the table is a list. Take row r first, then item c of that row.\nThis program makes a table with 2 rows and 3 columns, and puts (r − 1) × 3 + c in row r, column c. Switch between the two modes and compare the Memory panels.\nIn Scratch mode, the Memory panel draws this list with 3 items per row, so it looks like a table. The number under each box is still \"which item of the list\". Compare which row and column is which item."),
   ...blkProg([set("rows",2),set("cols",3),grid("t",v("rows"),v("cols"),0),count("r",1,v("rows"),[count("c",1,v("cols"),[setCell("t",v("r"),v("c"),v("cols"),add(mul(sub(v("r"),1),v("cols")),v("c")))])]),say(join("2, 3: ",cell("t",2,3,v("cols")))),say(join("1, 2: ",cell("t",1,2,v("cols"))))]),input:null,
   predict:T("Scratch 模式：第 2 列第 3 行是清單的第幾項？","Scratch mode: row 2, column 3 is which item of the list?"),
   ask:T("把 cols 改成 4（4 行），第 2 列第 1 行在 Scratch 的清單裡變成第幾項？","Change cols to 4 (4 columns). In the Scratch list, which item is row 2, column 1 now?")},
@@ -307,21 +307,21 @@ setBlkLessons(15,[
   ...blkProg([ask("n"),ask("money"),clear("coin"),repeat(v("n"),[ask("x"),push("coin",v("x"))]),clear("dp"),push("dp",0),repeat(v("money"),[push("dp",999)]),
     count("j",1,v("money"),[count("i",1,v("n"),[iff(ge(v("j"),item("coin",v("i"))),[set("try",add(item("dp",add(sub(v("j"),item("coin",v("i"))),1)),1)),
       iff(lt(v("try"),item("dp",add(v("j"),1))),[setItem("dp",add(v("j"),1),v("try"))])])])]),say(item("dp",add(v("money"),1)))]),
-  tests:[{input:"3 6\n4 3 1",output:"2",note:T("14-1 的貪心算出 3；DP 找到 3 + 3","Greedy in 14-1 gives 3; DP finds 3 + 3")},{input:"3 30\n25 10 1",output:"3",note:T("DP 找到 10 × 3","DP finds 10 × 3")},{input:"4 28\n10 5 2 1",output:"5"}],
+  tests:[{input:"3 6\n4 3 1",output:"2",note:T("14-1 的貪心算出 3；DP 找到 3 + 3","Greedy in 14-1 gives 3; DP finds 3 + 3")},{input:"3 30\n25 10 1",output:"3",note:T("DP 找到 10 × 3","DP finds 10 × 3")},{input:"4 28\n10 5 2 1",output:"5"},{input:"4 60\n25 10 5 1",output:"3",note:T("25 + 25 + 10","25 + 25 + 10")}],
   predict:T("第 1 筆測資，dp 最後是什麼樣子？","In test 1, what does dp look like at the end?"),
   ask:T("為什麼 dp 要多一項，從第 1 項放 0 元開始？","Why does dp need one extra item, with 0 starting at item 1?")},
  {id:"15-4",title:T("0/1 背包：二維表格","The 0/1 Knapsack: A 2D Table"),isNew:T("第 i + 1 列第 j + 1 行：只看前 i 樣東西、容量 j，最多多少價值","Row i + 1, column j + 1: the most value with the first i things and size j"),
-  goal:T("每樣東西只能整個拿或不拿，背包容量 cap，怎麼裝價值最高？用一張表：第 i + 1 列第 j + 1 行放「只看前 i 樣東西、容量 j 的時候，最多多少價值」。\n第 i 樣不拿：跟上一列同一行一樣。拿（要裝得下）：上一列、空出它的重量那一格，再加上它的價值。兩個取大的。\n表格的存法跟第 9 章一樣：Scratch 攤平成一條清單，Blockly 清單裡放清單。\n"+TRY,
-    "Each thing is taken whole or not at all, and the knapsack holds cap. How do you pack the most value? Use a table: row i + 1, column j + 1 holds \"the most value with only the first i things and size j\".\nNot taking thing i: the same as the row above, same column. Taking it (it must fit): the row above, at the column that leaves room for its weight, plus its value. Take the bigger one.\nThe table is stored like Chapter 9: Scratch flattens it into one list, and Blockly nests lists.\n"+TRY),
+  goal:T("每樣東西只能整個拿或不拿，背包容量 cap，怎麼裝價值最高？用一張表：第 i + 1 列第 j + 1 行放「只看前 i 樣東西、容量 j 的時候，最多多少價值」。\n第 i 樣不拿：跟上一列同一行一樣。拿（要裝得下）：上一列、空出它的重量那一格，再加上它的價值。兩個取大的。\n東西有幾樣不固定：先讀 n，重量和價值放進 w、val 兩條清單，表格就開 n + 1 列。\n表格的存法跟第 9 章一樣：Scratch 攤平成一條清單，Blockly 清單裡放清單。\n"+TRY,
+    "Each thing is taken whole or not at all, and the knapsack holds cap. How do you pack the most value? Use a table: row i + 1, column j + 1 holds \"the most value with only the first i things and size j\".\nNot taking thing i: the same as the row above, same column. Taking it (it must fit): the row above, at the column that leaves room for its weight, plus its value. Take the bigger one.\nThe number of things is not fixed: read n first, put the weights and values into the two lists w and val, and make the table n + 1 rows.\nThe table is stored like Chapter 9: Scratch flattens it into one list, and Blockly nests lists.\n"+TRY),
   task:T("題目：輸入東西的數量 n、背包容量 cap，再輸入每樣東西的重量和價值。輸出最多能裝多少價值。","Problem: Input the number of things n and the knapsack size cap, then the weight and value of each thing. Output the most value you can pack."),
   ...blkProg([ask("n"),ask("cap"),clear("w"),clear("val"),repeat(v("n"),[ask("a"),push("w",v("a")),ask("b"),push("val",v("b"))]),set("cols",add(v("cap"),1)),grid("dp",add(v("n"),1),v("cols"),0),
     count("i",1,v("n"),[count("j",0,v("cap"),[setCell("dp",add(v("i"),1),add(v("j"),1),v("cols"),cell("dp",v("i"),add(v("j"),1),v("cols"))),
       iff(ge(v("j"),item("w",v("i"))),[set("take",add(cell("dp",v("i"),add(sub(v("j"),item("w",v("i"))),1),v("cols")),item("val",v("i")))),
         iff(gt(v("take"),cell("dp",add(v("i"),1),add(v("j"),1),v("cols"))),[setCell("dp",add(v("i"),1),add(v("j"),1),v("cols"),v("take"))])])])]),
     say(cell("dp",add(v("n"),1),v("cols"),v("cols")))]),
-  tests:[{input:"3 5\n1 6\n2 10\n3 12",output:"22",note:T("拿 2、3 公斤，10 + 12 = 22","Take 2 and 3 kg: 10 + 12 = 22")},{input:"3 10\n5 10\n4 7\n6 6",output:"17"},{input:"3 10\n6 9\n5 5\n5 5",output:"10",note:T("拿兩個 5 公斤","Take the two 5 kg things")}],
-  predict:T("第 1 筆測資，表格有幾列幾行？","In test 1, how many rows and columns does the table have?"),
-  ask:T("這張表其實也可以只用一列：容量 j 從大往小更新。想想看為什麼要從大往小？","This table can really use just one row: update size j from big to small. Think about why it must go from big to small.")},
+  tests:[{input:"3 5\n1 6\n2 10\n3 12",output:"22",note:T("拿 2、3 公斤，10 + 12 = 22","Take 2 and 3 kg: 10 + 12 = 22")},{input:"3 10\n5 10\n4 7\n6 6",output:"17"},{input:"3 10\n6 9\n5 5\n5 5",output:"10",note:T("拿兩個 5 公斤","Take the two 5 kg things")},{input:"5 10\n2 3\n3 4\n4 5\n5 6\n6 7",output:"13",note:T("5 樣東西：表格有 6 列","5 things: the table has 6 rows")}],
+  predict:T("第 1 筆測資，表格有幾列幾行？換成第 4 筆（5 樣東西）呢？","In test 1, how many rows and columns does the table have? What about test 4 (5 things)?"),
+  ask:T("用「我的測資」自己放 6 樣東西試試看，表格會變成幾列？","Use \"My tests\" to try 6 things yourself. How many rows does the table have now?")},
  {id:"15-5",title:T("最長共同子序列（LCS）","Longest Common Subsequence (LCS)"),isNew:T("字一樣：左上角 + 1；不一樣：上面和左邊取大的","Same character: top left + 1; different: the bigger of above and left"),
   goal:T("兩個字串各挑一些字（順序不能變），挑出一樣的部分，最長有多長？例如 ABCBDAB 和 BDCABA 是 4（BCBA）。\n第 i + 1 列第 j + 1 行放「a 的前 i 個字和 b 的前 j 個字的答案」。第 i 個字和第 j 個字一樣：左上角那格 + 1；不一樣：上面和左邊取大的。第 1 列、第 1 行都是 0（有一邊是空的）。\n"+TRY,
     "Choose some characters from each of two strings (the order cannot change) so the chosen parts are the same. How long can it be? For ABCBDAB and BDCABA, it is 4 (BCBA).\nRow i + 1, column j + 1 holds \"the answer for the first i characters of a and the first j characters of b\". If character i and character j are the same: the top left box + 1; if not: the bigger of the box above and the box to the left. Row 1 and column 1 are all 0 (one side is empty).\n"+TRY),
@@ -431,4 +431,17 @@ setBlkLessons(17,[
   predict:T("第 1 筆測資，cnt 會在哪幾個點加 1？","In test 1, at which vertices does cnt go up by 1?"),
   ask:T("改成說出最大的一群有幾個點。","Change it to say how many vertices the biggest group has.")}
 ]);
+// 用到二維表格的課：Scratch 模式的記憶體區把這幾條清單每「欄數」項排成一列（清單名: 放欄數的變數名，或直接寫欄數）
+const TABLES={"9-1":{t:"cols"},"9-2":{t:"cols"},"9-3":{t:"cols"},"9-4":{t:"cols"},"9-5":{t:"cols"},"9-6":{t:3},
+  "15-4":{dp:"cols"},"15-5":{dp:"cols"},"17-1":{g:"n"},"17-3":{g:"n"},"17-4":{a:"cols",dist:"cols"},"17-5":{g:"n"},"17-6":{g:"n"}};
+// 樹和圖：在課程說明下面畫出來（js/graph.js）。點從 1 開始編號（base:1），跟清單的第幾項對得起來
+const TREE_G=(list,cur,extra)=>({n:15,base:1,labels:list,heapTree:true,cur,title:T("樹（清單的第 i 項）","Tree (item i of the list)"),titleEn:"Tree (item i of the list)",...extra});
+const P5=[[0,50],[33,6],[33,94],[66,50],[100,50]],E5=[[1,2],[1,3],[2,4],[3,4],[4,5]];
+const P6=[[0,20],[30,0],[30,60],[65,20],[100,20],[82,95]];
+const GRAPHS={"16-1":TREE_G("tree","i"),"16-2":TREE_G("tree","i"),"16-3":TREE_G("tree","i"),"16-4":TREE_G("tree","i"),"16-5":TREE_G("heap","i",{title:T("小頂堆積","Min-heap"),titleEn:"Min-heap"}),
+  "17-1":{n:5,base:1,pos:P5,from:"g",edges:E5},"17-2":{n:5,base:1,pos:P5,from:["eu","ev"],edges:E5,cur:"k"},
+  "17-3":{n:5,base:1,pos:P5,from:"g",edges:E5,cur:"u",nb:"w",visit:"vis",queue:"q"},
+  "17-5":{n:5,base:1,pos:P5,from:"g",edges:E5,cur:"u",nb:"w",visit:"vis",queue:"st"},
+  "17-6":{n:6,base:1,pos:P6,from:"g",cur:"u",nb:"w",visit:"vis",queue:"st"}};
+BLK_CHAPTERS.forEach(ch=>(ch.lessons||[]).forEach(L=>{if(TABLES[L.id])L.tables=TABLES[L.id];if(GRAPHS[L.id])L.graph=GRAPHS[L.id]}));
 })();
