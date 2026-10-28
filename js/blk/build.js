@@ -17,6 +17,9 @@ const BLKP=(()=>{
     and:(a,b)=>({t:"logic",op:"AND",a,b}),or:(a,b)=>({t:"logic",op:"OR",a,b}),not:x=>({t:"not",x}),
     join:(...xs)=>({t:"join",xs}),letter:(s,i)=>({t:"letter",s,i}),len:s=>({t:"len",s}),
     item:(l,i)=>({t:"item",l,i}),llen:l=>({t:"llen",l}),has:(l,x)=>({t:"has",l,x}),
+    // 二維表格（r、c 從 1 開始，cols 是有幾行）：Scratch 攤平成一條清單，第 (r - 1) × cols + c 項；Blockly 用清單裡放清單
+    cell:(l,r,c,cols)=>({t:"cell",l,r,c,cols}),
+    rep:(x,n)=>({t:"rep",x,n}),   // Blockly 的「建立清單，重複 n 次」（只用在 bl(…) 裡）
     call:(name,...args)=>({t:"call",name,args}),answer:()=>({t:"answer"}),
     // ---------- 敘述 ----------
     ask:(n,prompt="",type="NUMBER")=>({t:"ask",n,prompt,type}),askOnly:(prompt="")=>({t:"askOnly",prompt}),
@@ -26,6 +29,7 @@ const BLKP=(()=>{
     count:(n,from,to,body)=>({t:"count",n,from,to,body}),brk:()=>({t:"flow",f:"BREAK"}),cont:()=>({t:"flow",f:"CONTINUE"}),
     clear:l=>({t:"clear",l}),push:(l,x)=>({t:"push",l,x}),setItem:(l,i,x)=>({t:"setItem",l,i,x}),insert:(l,i,x)=>({t:"insert",l,i,x}),remove:(l,i)=>({t:"remove",l,i}),
     run:(name,...args)=>({t:"run",name,args}),
+    setCell:(l,r,c,cols,x)=>({t:"setCell",l,r,c,cols,x}),grid:(l,rows,cols,init)=>({t:"grid",l,rows,cols,init}),
     sc:(...body)=>({t:"only",m:"sc",body}),bl:(...body)=>({t:"only",m:"bl",body}),
     // 函式：fn("名字",["參數"],[敘述…],回傳的值（可以不寫）)
     fn:(name,params,body,ret)=>({name,params,body,ret}),
@@ -43,7 +47,7 @@ const BLKP=(()=>{
     const fmut=d=>`<mutation name="${xe(d.name)}">`+d.params.map(p=>`<arg name="${xe(p)}" type="NumberString"></arg>`).join("")+"</mutation>";
     const def=name=>{const d=defs.find(d=>d.name===name);if(!d)throw new Error("blkProg: 沒有定義 "+name);return d};
     const useVar=n=>{if(!vars.has(n))vars.set(n,"")};
-    const useList=n=>{lists.add(n);if(!vars.has(n))vars.set(n,"list")};
+    const useList=n=>{lists.add(n);if(!vars.has(n))vars.set(n,sc?"list":"")};   // Blockly 的清單就是普通的變數（放一條清單）
     const F=n=>({id:vid(n)});
     const lit=x=>typeof x==="number"||typeof x==="string";
     const num=x=>({type:"math_number",fields:{NUM:x}}),txt=x=>({type:sc?"scratch_text":"text",fields:{TEXT:String(x)}});
@@ -55,6 +59,8 @@ const BLKP=(()=>{
       return b;
     }
     const listVar=l=>(useList(l),sc?null:{block:{type:"variables_get",fields:{VAR:F(l)}}});
+    // Blockly：表格 l 的第 r 列（一條清單）
+    const rowOf=(l,r)=>({type:"lists_getIndex",fields:{MODE:"GET",WHERE:"FROM_START"},inputs:{VALUE:listVar(l),AT:slot(r,"num")}});
     function E(x){
       if(typeof x==="boolean")return{type:"logic_boolean",fields:{BOOL:x?"TRUE":"FALSE"}};
       if(lit(x))return typeof x==="number"?num(x):txt(x);
@@ -81,6 +87,10 @@ const BLKP=(()=>{
         case"has":return sc?(useList(x.l),{type:"scratch_list_contain",fields:{LIST:F(x.l)},inputs:{ITEM:slot(x.x,"text")}})
           :E({t:"cmp",op:"GT",a:{t:"raw",b:{type:"lists_indexOf",fields:{END:"FIRST"},inputs:{VALUE:listVar(x.l),FIND:slot(x.x,"none")}}},b:0});
         case"raw":return x.b;
+        case"cell":{
+          if(sc)return E({t:"item",l:x.l,i:{t:"ar",op:"ADD",a:{t:"ar",op:"MULTIPLY",a:{t:"ar",op:"MINUS",a:x.r,b:1},b:x.cols},b:x.c}});
+          return{type:"lists_getIndex",fields:{MODE:"GET",WHERE:"FROM_START"},inputs:{VALUE:{block:rowOf(x.l,x.r)},AT:slot(x.c,"num")}}}
+        case"rep":return{type:"lists_repeat",inputs:{ITEM:slot(x.x,"none"),NUM:slot(x.n,"num")}};
         case"call":if(sc)throw new Error("blkProg: Scratch 沒有會回傳值的積木："+x.name);return{type:"procedures_callreturn",extraState:{name:x.name,params:defs.find(d=>d.name===x.name).params},inputs:args(x.args)};
       }
       throw new Error("blkProg: 不認得的算值 "+JSON.stringify(x));
@@ -119,6 +129,12 @@ const BLKP=(()=>{
           :[{type:"lists_setIndex",fields:{MODE:"INSERT",WHERE:"FROM_START"},inputs:{LIST:listVar(s.l),AT:slot(s.i,"num"),TO:slot(s.x,"none")}}];
         case"remove":return sc?(useList(s.l),[{type:"scratch_list_remove",fields:{LIST:F(s.l)},inputs:{INDEX:slot(s.i,"num")}}])
           :[{type:"lists_getIndex",extraState:{isStatement:true},fields:{MODE:"REMOVE",WHERE:"FROM_START"},inputs:{VALUE:listVar(s.l),AT:slot(s.i,"num")}}];
+        case"setCell":
+          if(sc)return S({t:"setItem",l:s.l,i:{t:"ar",op:"ADD",a:{t:"ar",op:"MULTIPLY",a:{t:"ar",op:"MINUS",a:s.r,b:1},b:s.cols},b:s.c},x:s.x});
+          return[{type:"lists_setIndex",fields:{MODE:"SET",WHERE:"FROM_START"},inputs:{LIST:{block:rowOf(s.l,s.r)},AT:slot(s.c,"num"),TO:slot(s.x,"none")}}];
+        case"grid":   // 做一個 rows × cols、每一格都是 init 的表格
+          if(sc)return[...S({t:"clear",l:s.l}),...S({t:"repeat",n:{t:"ar",op:"MULTIPLY",a:s.rows,b:s.cols},body:[{t:"push",l:s.l,x:s.init}]})];
+          return[...S({t:"clear",l:s.l}),...S({t:"repeat",n:s.rows,body:[{t:"push",l:s.l,x:{t:"rep",x:s.init,n:s.cols}}]})];
         case"run":if(sc){const d=def(s.name),inputs={};d.params.forEach((p,i)=>{if(i<s.args.length)inputs[p]=slot(s.args[i],"text")});
             return[{type:"scratch_function_call",extraState:fmut(d),inputs}]}
           return[{type:"procedures_callnoreturn",extraState:{name:s.name,params:defs.find(d=>d.name===s.name).params},inputs:args(s.args)}];

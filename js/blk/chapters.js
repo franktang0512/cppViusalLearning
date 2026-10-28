@@ -12,7 +12,7 @@
 const BLK_CHAPTERS=(()=>{
 const {v,add,sub,mul,div,mod,round,floor,eq,lt,gt,le,ge,and,or,join,item,llen,call,answer,
   ask,askOnly,say,set,change,iff,ifs,repeat,until,count,brk,cont,clear,push,setItem,insert,run,sc,bl,fn,blkProg}=BLKP;
-const P=T("基礎程式設計","Basic Programming");
+const P="";   // 積木課不分「基礎程式設計、進階程式設計」，目錄直接照章節排下來
 // 讀 n，再讀 n 個數放進清單 nums（第 5 章以後常用）
 const readList=()=>[ask("n"),clear("nums"),repeat(v("n"),[ask("x"),push("nums",v("x"))])];
 return[
@@ -304,17 +304,17 @@ return[
      count("k",1,llen("nums"),[say(item("nums",v("k")))])]),
    tests:[{input:"5\n5 1 4 2 8",output:"1\n2\n4\n5\n8"},{input:"3\n3 2 1",output:"1\n2\n3"}],
    ask:T("跟泡沫排序比，交換的次數哪個比較少？用追蹤表數數看。","Compared with bubble sort, which one swaps fewer times? Count with the Trace Table.")}]},
- /* ---------- 進階：先列大綱（製作中）。二維表格：Scratch 攤平成一條清單，Blockly 用清單裡放清單 ---------- */
- {part:T("進階程式設計","Advanced Programming"),id:8,blk:true,title:T("字串","Strings"),soon:[T("一個字一個字看","One character at a time"),T("反轉字串","Reverse a string"),T("迴文","Palindromes"),T("數某個字出現幾次","Count a character"),T("各位數字的和","Sum of the digits")]},
- {part:T("進階程式設計","Advanced Programming"),id:9,blk:true,title:T("二維表格","Two-Dimensional Tables"),soon:[T("Scratch 攤平成一條清單、Blockly 清單裡放清單","Scratch: flatten into one list; Blockly: lists inside a list"),T("兩層迴圈走過表格","Go through a table with two loops"),T("每一列加總","Add up each row"),T("上下左右","Up, down, left, right"),T("邊界檢查","Checking the edges"),T("Blockly 的陷阱：重複同一條清單","A Blockly trap: repeating the same list")]},
- {part:T("進階程式設計","Advanced Programming"),id:10,blk:true,title:T("遞迴","Recursion"),soon:[T("自訂積木呼叫自己","A custom block that calls itself"),T("倒數","Count down"),T("階乘：結果放在變數裡","Factorial: keep the result in a variable"),T("費氏數列：同一個值算了好幾次","Fibonacci: the same value worked out many times"),T("自己用清單當 stack","Use a list as your own stack")]},
- {part:T("進階程式設計","Advanced Programming"),id:11,blk:true,title:T("Stack 與 Queue","Stack and Queue"),soon:[T("清單當 stack","A list as a stack"),T("後進先出","Last in, first out"),T("清單當 queue","A list as a queue"),T("先進先出","First in, first out"),T("括號配對","Matching brackets")]},
- {part:T("進階程式設計","Advanced Programming"),id:12,blk:true,title:T("搜尋與排序（續）","Searching and Sorting (More)"),soon:[T("二分搜尋","Binary search"),T("插入排序","Insertion sort"),T("計數排序","Counting sort")]},
- {part:T("最佳化專論","Optimization Topics"),id:13,blk:true,title:T("窮舉","Brute Force"),soon:[T("巢狀迴圈窮舉","Brute force with nested loops"),T("雞兔同籠","Chickens and rabbits"),T("列出所有選法","List every way to choose"),T("排列","Permutations")]},
- {part:T("最佳化專論","Optimization Topics"),id:14,blk:true,title:T("貪心","Greedy Algorithms"),soon:[T("找零錢（含反例）","Making change (with counterexamples)"),T("排隊打水","Waiting in line for water"),T("活動選擇","Choosing activities")]},
- {part:T("最佳化專論","Optimization Topics"),id:15,blk:true,title:T("動態規劃","Dynamic Programming"),soon:[T("費氏數列填表","Fibonacci with a table"),T("爬樓梯","Climbing stairs"),T("硬幣找零","Making change"),T("0/1 背包：二維表格（Scratch 攤平、Blockly 清單裡放清單）","0/1 knapsack: a 2D table (Scratch flattens, Blockly nests lists)"),T("最長共同子序列（LCS）","Longest common subsequence (LCS)")]},
- {part:T("進階程式設計","Advanced Programming"),id:16,blk:true,title:T("樹（存在清單裡）","Trees (Stored in a List)"),soon:[T("第 i 項的孩子在 2i、2i + 1","The children of item i are at 2i and 2i + 1"),T("前序、中序、後序走訪","Preorder, inorder, and postorder traversal"),T("樹的高度","The height of a tree"),T("小頂堆積：放進去、拿出最小的","Min-heap: put in, take out the smallest")]},
- {part:T("進階程式設計","Advanced Programming"),id:17,blk:true,title:T("圖","Graphs"),soon:[T("鄰接矩陣","Adjacency matrix"),T("邊串列：兩條清單","Edge list: two lists"),T("BFS：一層一層擴散","BFS: spreading out level by level"),T("迷宮 BFS","Maze BFS"),T("DFS：一路走到底","DFS: go all the way down"),T("連通塊","Connected components")]},
- {part:"Case Study",id:18,blk:true,title:T("銜接解題","Toward Problem Solving"),soon:[T("前綴和","Prefix sums"),T("雙指標","Two pointers"),T("滑動視窗","Sliding windows")]},
+ /* ---------- 第 8 章以後：先列大綱（製作中）。二維表格：Scratch 攤平成一條清單，Blockly 用清單裡放清單 ---------- */
+ {part:P,id:8,blk:true,title:T("字串","Strings"),soon:[T("一個字一個字看","One character at a time"),T("反轉字串","Reverse a string"),T("迴文","Palindromes"),T("數某個字出現幾次","Count a character"),T("各位數字的和","Sum of the digits")]},
+ {part:P,id:9,blk:true,title:T("二維表格","Two-Dimensional Tables"),soon:[T("Scratch 攤平成一條清單、Blockly 清單裡放清單","Scratch: flatten into one list; Blockly: lists inside a list"),T("兩層迴圈走過表格","Go through a table with two loops"),T("每一列加總","Add up each row"),T("上下左右","Up, down, left, right"),T("邊界檢查","Checking the edges"),T("Blockly 的陷阱：重複同一條清單","A Blockly trap: repeating the same list")]},
+ {part:P,id:10,blk:true,title:T("遞迴","Recursion"),soon:[T("自訂積木呼叫自己","A custom block that calls itself"),T("倒數","Count down"),T("階乘：結果放在變數裡","Factorial: keep the result in a variable"),T("費氏數列：同一個值算了好幾次","Fibonacci: the same value worked out many times"),T("自己用清單當 stack","Use a list as your own stack")]},
+ {part:P,id:11,blk:true,title:T("Stack 與 Queue","Stack and Queue"),soon:[T("清單當 stack","A list as a stack"),T("後進先出","Last in, first out"),T("清單當 queue","A list as a queue"),T("先進先出","First in, first out"),T("括號配對","Matching brackets")]},
+ {part:P,id:12,blk:true,title:T("搜尋與排序（續）","Searching and Sorting (More)"),soon:[T("二分搜尋","Binary search"),T("插入排序","Insertion sort"),T("計數排序","Counting sort")]},
+ {part:P,id:13,blk:true,title:T("窮舉","Brute Force"),soon:[T("巢狀迴圈窮舉","Brute force with nested loops"),T("雞兔同籠","Chickens and rabbits"),T("列出所有選法","List every way to choose"),T("排列","Permutations")]},
+ {part:P,id:14,blk:true,title:T("貪心","Greedy Algorithms"),soon:[T("找零錢（含反例）","Making change (with counterexamples)"),T("排隊打水","Waiting in line for water"),T("活動選擇","Choosing activities")]},
+ {part:P,id:15,blk:true,title:T("動態規劃","Dynamic Programming"),soon:[T("費氏數列填表","Fibonacci with a table"),T("爬樓梯","Climbing stairs"),T("硬幣找零","Making change"),T("0/1 背包：二維表格（Scratch 攤平、Blockly 清單裡放清單）","0/1 knapsack: a 2D table (Scratch flattens, Blockly nests lists)"),T("最長共同子序列（LCS）","Longest common subsequence (LCS)")]},
+ {part:P,id:16,blk:true,title:T("樹（存在清單裡）","Trees (Stored in a List)"),soon:[T("第 i 項的孩子在 2i、2i + 1","The children of item i are at 2i and 2i + 1"),T("前序、中序、後序走訪","Preorder, inorder, and postorder traversal"),T("樹的高度","The height of a tree"),T("小頂堆積：放進去、拿出最小的","Min-heap: put in, take out the smallest")]},
+ {part:P,id:17,blk:true,title:T("圖","Graphs"),soon:[T("鄰接矩陣","Adjacency matrix"),T("邊串列：兩條清單","Edge list: two lists"),T("BFS：一層一層擴散","BFS: spreading out level by level"),T("迷宮 BFS","Maze BFS"),T("DFS：一路走到底","DFS: go all the way down"),T("連通塊","Connected components")]},
+ {part:P,id:18,blk:true,title:T("銜接解題","Toward Problem Solving"),soon:[T("前綴和","Prefix sums"),T("雙指標","Two pointers"),T("滑動視窗","Sliding windows")]},
 ];
 })();

@@ -118,7 +118,8 @@ function renderBlkMem(s,flash){
   const cell=(v,i,k,last)=>`<div class="cell${last?" last":""}"><div class="cv${hit(k)}">${esc2(fmt(v))||"&nbsp;"}</div><div class="ci">${i}</div></div>`;
   const row=(name,a,key,ty)=>`<div><div class="arr-head"><div class="addr"></div><div class="meta"><span class="nm">${esc2(name)}</span> <span class="ty">${ty}・${T(`${a.length} 項`,`${a.length} items`)}</span></div></div>`+
     `<div class="arr">${a.length?a.map((x,i)=>cell(x,i+1,key+":"+i,i===a.length-1)).join(""):`<div class="cell last"><div class="cv${hit(key)}" style="min-width:5em">${T("空的","empty")}</div><div class="ci">&nbsp;</div></div>`}</div></div>`;
-  const one=(name,v,key,ty)=>Array.isArray(v)?row(name,v,key,ty):
+  // 清單裡放清單（Blockly 的二維表格）：一列一排畫出來
+  const one=(name,v,key,ty)=>Array.isArray(v)?(v.length&&v.every(Array.isArray)?v.map((rw,i)=>row(T(`${name} 第 ${i+1} 列`,`${name} row ${i+1}`),rw,key+":"+i,ty)).join(""):row(name,v,key,ty)):
     `<div class="var"><div class="addr"></div><div class="box${hit(key)}" style="--n:${Math.max(1,Math.ceil((String(fmt(v)).length*12+16)/30))}"><div class="val${v===undefined?" g":""}">${esc2(fmt(v))}</div></div><div class="meta"><div class="nm">${esc2(name)}</div><div class="ty">${ty}</div></div></div>`;
   let h="";
   const asks=(ST.code||"").includes("event_askandwait")||(ST.code||"").includes("event_answer");

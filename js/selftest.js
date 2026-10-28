@@ -6,6 +6,7 @@
      ok：沒有預期輸出，程式正常跑完
      CE：編譯錯誤；其他錯誤記錯誤的名字（IndexError、TypeError……），看不出名字就是 RE
    一課有好幾筆測資就用空白隔開；積木課 Scratch、Blockly 兩種模式各跑一次，用「|」隔開。
+   積木課讀進積木時：讀不進來是 LOADERR，有積木接不上去（掉出來變成最上層）是 DISCONNECT。
    英文模式另外列出還有中文的課（只是提醒，不算錯）。 */
 (function(){
   const Q=new URLSearchParams(location.search);
@@ -27,7 +28,10 @@
   let ws=null;
   function blkNorm(code){
     if(!ws){blkDefine();ws=new Blockly.Workspace()}
-    ws.clear();Blockly.serialization.workspaces.load(typeof code==="string"?JSON.parse(code):code,ws);
+    const j=typeof code==="string"?JSON.parse(code):code;
+    ws.clear();Blockly.serialization.workspaces.load(j,ws);
+    // 讀進來以後最上層的積木變多了：有積木接不上去（例如文字接到只收數字的格子），掉出來了
+    if(ws.getTopBlocks(false).length!==((j.blocks&&j.blocks.blocks)||[]).length)throw new Error("DISCONNECT");
     return JSON.stringify(blkSave(ws));
   }
   function lesson(L){
@@ -36,7 +40,7 @@
     if(COURSE==="blk"){
       sig=["code","blocklyCode"].map(k=>{
         if(!L[k])return"-";
-        let src;try{src=blkNorm(L[k])}catch(e){return"LOADERR"}
+        let src;try{src=blkNorm(L[k])}catch(e){return e.message==="DISCONNECT"?"DISCONNECT":"LOADERR"}
         return cases.map(c=>one(src,c,flags)).join(" ");
       }).join(" | ");
     }else sig=cases.map(c=>one(L.code,c,flags)).join(" ");
