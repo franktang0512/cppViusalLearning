@@ -58,5 +58,11 @@ CHAPTERS.push({part:"進階程式設計",id:11,title:"struct 與鏈結串列",le
   goal:"前面自己用 struct 和 new 做鏈結串列，插在最前面、刪掉第一個都要自己改指標。C++ 已經幫你做好了：#include <list> 之後用 list<int>，push_front 就是插在最前面、pop_front 就是刪掉第一個，指標的事它都幫你處理。\nlist 不能用 l[i] 直接跳到第幾個（因為要從頭一個一個走），要看全部就用 for (int x : l)。",
   code:M("list<int> l;  // C++ 內建的鏈結串列","","l.push_back(2);   // 接在最後面","l.push_back(3);","l.push_front(1);  // 插在最前面（11-8 自己做過）","l.pop_front();    // 刪掉第一個（11-9 自己做過）","l.push_front(0);","for (int x : l) {","    cout << x << \" \";","}","cout << endl;").replace("#include <iostream>","#include <iostream>\n#include <list>"),input:null,
   predict:"最後 l 裡面依序是哪些數字？",
-  ask:"把 for 迴圈改成 cout << l[1] << endl; 會怎樣？為什麼 list 不能這樣用？"}
+  ask:"把 for 迴圈改成 cout << l[1] << endl; 會怎樣？為什麼 list 不能這樣用？"},
+ {id:"11-11",title:"用陣列做鏈結串列：next 存「第幾格」",isNew:"nxt[i] 存下一個節點在第幾格，-1 代表結尾；p = nxt[p] 就是 p = p->next",uses:"11-7 的走訪、11-8 的插在最前面",
+  goal:"前面的節點是一個一個做出來、用箭頭連起來的。很多 OJ 的程式會改用兩個陣列：val[i] 放資料，nxt[i] 放「下一個節點在第幾格」，-1 代表結尾，就像nullptr。p = nxt[p] 就是 p = p->next。\n注意看：陣列裡的順序（20、10、30、5）和串列的順序不一樣，要跟著 nxt 走才知道誰在後面。插在最前面也不用搬動任何格子，只要改 nxt 和 head。\n16-14 的 BST 也是同一個想法：把箭頭換成「第幾格」。",
+  code:["#include <iostream>", "using namespace std;", "", "int main() {", "    int val[10];  // val[i]：第 i 格節點的資料", "    int nxt[10];  // nxt[i]：下一個節點在第幾格，-1 代表結尾", "    int head;     // 第一個節點在第幾格", "    int p;        // 走訪用：現在走到第幾格", "", "    val[0] = 20;", "    nxt[0] = 2;   // 20 的下一個在第 2 格", "    val[1] = 10;", "    nxt[1] = 0;   // 10 的下一個在第 0 格", "    val[2] = 30;", "    nxt[2] = -1;  // 30 後面沒有了", "    head = 1;     // 串列從第 1 格開始", "", "    val[3] = 5;   // 插在最前面：新節點放在第 3 格", "    nxt[3] = head;", "    head = 3;", "", "    p = head;", "    while (p != -1) {", "        cout << val[p] << \" \";", "        p = nxt[p];  // 就是 p = p->next", "    }", "    cout << endl;", "    return 0;", "}"].join("\n"),input:null,
+  markers:{val:["p"],nxt:["p"]},
+  predict:"陣列裡依序放的是 20、10、30、5，印出來會是什麼順序？",
+  ask:"要刪掉第一個節點，要改哪一個變數？被刪掉的那一格，陣列裡還在嗎？"}
 ]});

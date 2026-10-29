@@ -57,7 +57,7 @@ CHAPTERS.push({part:"最佳化專論",id:19,title:"貪心",lessons:[
   markers:{"w": ["i", "j"], "v": ["i", "j"]},
   predict:"3 筆測資裡，哪幾筆會 WA？貪心各算出多少？",
   ask:"第 3 筆真正最好的裝法是什麼？為什麼「每公斤最值錢」的那一樣，反而不該拿？"},
- {id:"19-8",title:"霍夫曼編碼：每次合併最小的兩個",isNew:"priority_queue 小的先出：拿兩個最小的，合起來再放回去；這就是霍夫曼編碼的做法",uses:"16-14 的 priority_queue、19-3",
+ {id:"19-8",title:"霍夫曼編碼：每次合併最小的兩個",isNew:"priority_queue 小的先出：拿兩個最小的，合起來再放回去；這就是霍夫曼編碼的做法",uses:"16-18 的 priority_queue、19-3",
   goal:"有 n 堆果子，每次可以把兩堆合成一堆，花的力氣等於兩堆的重量相加。全部合成一堆，最少要花多少力氣？\n越早合併的那堆，之後每次合併都會被算進去一次，所以要讓小的先合併。貪心的做法：每次拿出最小的兩堆合起來，再把新的這堆放回去，一直做到只剩一堆。\n要一直拿「最小的」，正好用由小到大的 priority_queue。這就是「霍夫曼編碼」（Huffman Coding）的做法：把每堆的重量換成每個字出現的次數，每次合併次數最少的兩個，合併的過程會建出一棵二元樹。出現越多次的字離樹根越近，編碼就越短，檔案就壓得越小。這個貪心是對的，每一筆都會 AC。\n先選一筆測資按「執行這筆測資」，每一筆都跑跑看。",
   task:"題目：輸入堆數 n，再輸入每一堆的重量。印出每次合併的過程，最後一行印出最少要花多少力氣。",
   code:M("priority_queue<int, vector<int>, greater<int>> pq;  // 小的先出來","int n, x;      // 有幾堆、每一堆的重量","int a, b;      // 拿出來的兩堆","int cost = 0;  // 一共花了多少力氣","int i;         // 迴圈用","","cin >> n;","for (i = 0; i < n; i++) {","    cin >> x;","    pq.push(x);","}","while (pq.size() > 1) {","    a = pq.top();","    pq.pop();","    b = pq.top();","    pq.pop();","    cost += a + b;","    cout << a << \" + \" << b << \" = \" << a + b << endl;","    pq.push(a + b);","}","cout << cost << endl;").replace("#include <iostream>","#include <iostream>\n#include <queue>\n#include <vector>"),

@@ -49,5 +49,11 @@ setPyLessons(11,[
   goal:"要刪掉第一個節點，只要 head = head.next：head 改指第二個節點。\nC++ 要先用一個指標記住舊的節點、移動 head、再 delete 還回記憶體；Python 不用 delete：舊的第一個節點已經沒有任何名字、任何箭頭指著它，Python 會自動把它回收。\n看右邊：head 移動以後，10 那個節點就不見了。",
   code:PY("class Node:","    def __init__(self, data):","        self.data = data","        self.next = None","","head = Node(10)","head.next = Node(20)","head.next.next = Node(30)","head = head.next","p = head","while p is not None:","    print(p.data, end=\" \")","    p = p.next","print()"),input:null,
   predict:"head = head.next 之後，10 那個節點去哪裡了？",
-  ask:"如果在刪掉之前先寫 old = head，10 那個節點還會被回收嗎？"}
+  ask:"如果在刪掉之前先寫 old = head，10 那個節點還會被回收嗎？"},
+ {id:"11-10",title:"用陣列做鏈結串列：next 存「第幾格」",isNew:"nxt[i] 存下一個節點在第幾格，-1 代表結尾；p = nxt[p] 就是 p = p.next",uses:"11-7 的走訪、11-8 的插在最前面",
+  goal:"前面的節點是一個一個做出來、用箭頭連起來的。很多 OJ 的程式會改用兩個陣列：val[i] 放資料，nxt[i] 放「下一個節點在第幾格」，-1 代表結尾，就像None。p = nxt[p] 就是 p = p.next。\n注意看：陣列裡的順序（20、10、30、5）和串列的順序不一樣，要跟著 nxt 走才知道誰在後面。插在最前面也不用搬動任何格子，只要改 nxt 和 head。\n16-14 的 BST 也是同一個想法：把箭頭換成「第幾格」。",
+  code:PY("val = [0] * 10  # val[i]：第 i 格節點的資料", "nxt = [0] * 10  # nxt[i]：下一個節點在第幾格，-1 代表結尾", "val[0] = 20", "nxt[0] = 2   # 20 的下一個在第 2 格", "val[1] = 10", "nxt[1] = 0   # 10 的下一個在第 0 格", "val[2] = 30", "nxt[2] = -1  # 30 後面沒有了", "head = 1     # 串列從第 1 格開始", "", "val[3] = 5   # 插在最前面：新節點放在第 3 格", "nxt[3] = head", "head = 3", "", "p = head     # 走訪用：現在走到第幾格", "while p != -1:", "    print(val[p], end=\" \")", "    p = nxt[p]  # 就是 p = p.next", "print()"),input:null,
+  markers:{val:["p"],nxt:["p"]},
+  predict:"陣列裡依序放的是 20、10、30、5，印出來會是什麼順序？",
+  ask:"要刪掉第一個節點，要改哪一個變數？被刪掉的那一格，陣列裡還在嗎？"}
 ]);

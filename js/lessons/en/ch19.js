@@ -103,7 +103,7 @@ Object.assign(LESSON_EN,{
 "19-8": {
 "title": "Huffman Coding: Merge the Two Smallest Each Time",
 "isNew": "a priority_queue with the smallest first: take the two smallest, join them, and put the result back; this is how Huffman coding works",
-"uses": "priority_queue in 16-14, 19-3",
+"uses": "priority_queue in 16-18, 19-3",
 "goal": "There are n piles of fruit. Each time you can merge two piles into one, and the effort is the two piles' weights added together. What is the least effort to merge everything into one pile?\nA pile merged early is counted again in every later merge, so the small ones should be merged first. The greedy way: each time, take out the two smallest piles, join them, and put the new pile back, until only one pile is left.\nTo keep taking \"the smallest\", a priority_queue with the smallest first is just right. This is how \"Huffman coding\" works: replace each pile's weight with how many times each character appears, and each time merge the two with the fewest times; the merging builds a binary tree. Characters that appear more often are closer to the root, so their codes are shorter and the file is compressed more. This greedy is right, and every test case gets AC.\nPick a test case and press \"Run this test\". Try every one.",
 "task": "Problem: Input the number of piles n, then the weight of each pile. Print each merge, and on the last line print the least effort needed.",
 "predict": "For test case 1, which two piles are merged first? How much effort is spent in total?",

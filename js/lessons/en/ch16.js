@@ -71,7 +71,7 @@ Object.assign(LESSON_EN,{
 "ask": "If you change the queue to a stack (push, top, pop), what does the order become? Which traversal does it look like?",
 "code": "#include <iostream>\n#include <queue>\nusing namespace std;\n\n"+TNODE_EN+"\n\nint main() {\n    queue<Node*> q;  // nodes lined up, waiting to be visited\n    Node *cur;       // the node taken out now\n"+TROOT_EN+"\n    q.push(root);\n    while (!q.empty()) {\n        cur = q.front();\n        q.pop();\n        cout << cur->val << \" \";\n        if (cur->left != nullptr) {\n            q.push(cur->left);\n        }\n        if (cur->right != nullptr) {\n            q.push(cur->right);\n        }\n    }\n    cout << endl;\n    return 0;\n}"
 },
-"16-8": {
+"16-11": {
 "title": "Height and Number of Nodes",
 "isNew": "with recursion: the answer for the whole tree = combine the answers for the left and the right",
 "uses": "the recursive traversal in 16-4",
@@ -80,16 +80,16 @@ Object.assign(LESSON_EN,{
 "ask": "If an empty tree's height were written as 0 (not -1), how far off would the computed height be?",
 "code": TH_EN+TNODE_EN+"\n\nint countNodes(Node *t) {  // how many nodes the tree rooted at t has\n    if (t == nullptr) {\n        return 0;\n    }\n    return countNodes(t->left) + countNodes(t->right) + 1;\n}\n\nint height(Node *t) {  // the height of the tree rooted at t\n    int hl, hr;  // the height of the left side and of the right side\n\n    if (t == nullptr) {\n        return -1;  // an empty tree has height -1\n    }\n    hl = height(t->left);\n    hr = height(t->right);\n    return max(hl, hr) + 1;\n}\n\nint main() {\n"+TROOT_EN+"\n    cout << \"Nodes: \" << countNodes(root) << endl;\n    cout << \"Height: \" << height(root) << endl;\n    return 0;\n}"
 },
-"16-9": {
+"16-15": {
 "title": "General Trees",
 "isNew": "a node can have many children: child[i] is the list of node i's children",
 "uses": "2D vectors (lesson 7-10), recursion",
-"goal": "Not every tree is a binary tree. In a company's org chart or a computer's folders, a node can have many children. A common way to store this: number the nodes 0 to n-1, and let the vector child[i] hold all the children of node i. APCS tree problems are often stored like this.\nThe idea for the height is the same as for a binary tree: the height of each child + 1, take the largest; a node with no children (a leaf) has height 0. Look at the 2D vector on the right: each row is the list of one node's children.",
+"goal": "Not every tree is a binary tree. In a company's org chart or a computer's folders, a node can have many children. A common way to store this: number the nodes 0 to n-1, and let the vector child[i] hold all the children of node i. APCS tree problems are often stored like this.\nThe idea for the height is the same as for a binary tree: the height of each child + 1, take the largest; a node with no children (a leaf) has height 0. Look at the 2D vector on the right: each row is the list of one node's children.\nIn 16-14, each node records its children with two numbers, left and right. A general tree can have more than two children, so it uses a list of numbers instead.",
 "predict": "Which nodes are leaves? What is the height of the whole tree?",
 "ask": "Add a child 7 under node 6 (child needs 8 rows). What does the height become?",
 "code": "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint height(vector<vector<int>> &child, int v) {  // the height of the tree rooted at node v\n    int best = 0;  // the tallest height so far\n    int k;         // which child\n\n    for (k = 0; k < child[v].size(); k++) {\n        best = max(best, height(child, child[v][k]) + 1);\n    }\n    return best;\n}\n\nint main() {\n    vector<vector<int>> child(7);  // child[i]: the children of node i\n    int i;  // which node\n\n    child[0].push_back(1);\n    child[0].push_back(2);\n    child[0].push_back(3);  // node 0 has three children\n    child[1].push_back(4);\n    child[1].push_back(5);\n    child[3].push_back(6);\n    for (i = 0; i < 7; i++) {\n        cout << i << \" has \" << child[i].size() << \" children\" << endl;\n    }\n    cout << \"Height: \" << height(child, 0) << endl;\n    return 0;\n}"
 },
-"16-10": {
+"16-8": {
 "title": "BST Rules and Searching",
 "isNew": "everything on the left is smaller, everything on the right is bigger; a search goes one way each step",
 "uses": "walking down along pointers in 16-3",
@@ -98,25 +98,25 @@ Object.assign(LESSON_EN,{
 "ask": "Change x to 6 (not in the tree). Where does cur stop at the end?",
 "code": TH_EN+TNODE_EN+"\n\nint main() {\n    Node *cur;          // which node we are at now\n    int x = 7;          // the number to find\n    bool found = false;  // found it yet?\n    Node *root = new Node{5, nullptr, nullptr};  // the root\n\n    root->left = new Node{3, nullptr, nullptr};\n    root->right = new Node{8, nullptr, nullptr};\n    root->left->left = new Node{1, nullptr, nullptr};\n    root->left->right = new Node{4, nullptr, nullptr};\n    root->right->left = new Node{7, nullptr, nullptr};\n    root->right->right = new Node{9, nullptr, nullptr};\n\n    cur = root;\n    while (cur != nullptr) {\n        if (x == cur->val) {\n            found = true;\n            break;\n        } else if (x < cur->val) {\n            cur = cur->left;   // smaller: look on the left\n        } else {\n            cur = cur->right;  // bigger: look on the right\n        }\n    }\n    cout << found << endl;\n    return 0;\n}"
 },
-"16-11": {
+"16-9": {
 "title": "Inserting into a BST",
 "isNew": "compare all the way down, and put it at the empty spot (nullptr)",
-"uses": "BST rules in 16-10, recursion, functions that return a pointer",
+"uses": "BST rules in 16-8, recursion, functions that return a pointer",
 "goal": "To put x into a BST, compare all the way down just like a search: smaller goes left, bigger goes right. When you reach nullptr (an empty spot), make a new node there with new.\ninsert returns \"the root of this tree after inserting\": at an empty spot it returns the new node, and otherwise it returns the old t. So t->left = insert(t->left, x) links the new node in. Watch the tree on the right grow one node at a time.",
 "predict": "If 5, 3, 8, 1, 4, 7, 9 are put in in order, what does the tree look like?",
 "ask": "Change the order to 1, 3, 4, 5, 7, 8, 9 (already sorted). What shape does the tree become? Is searching still fast?",
 "code": TH_EN+TNODE_EN+"\n\n"+TINS_EN+"\n\nint main() {\n    Node *root = nullptr;              // the tree starts empty\n    int a[7] = {5, 3, 8, 1, 4, 7, 9};  // the numbers put in, in order\n    int i;                             // which one\n\n    for (i = 0; i < 7; i++) {\n        root = insert(root, a[i]);\n    }\n    cout << root->val << \" \" << root->left->val << \" \" << root->right->val << endl;\n    return 0;\n}"
 },
-"16-12": {
+"16-10": {
 "title": "In-order Traversal of a BST: Small to Large",
 "isNew": "an in-order traversal of a BST prints from small to large",
-"uses": "in-order traversal in 16-5, BST insertion in 16-11",
+"uses": "in-order traversal in 16-5, BST insertion in 16-9",
 "goal": "In a BST, the left side is smaller and the right side is bigger, and in-order traversal is \"left → itself → right\", so it prints from small to large. In other words, insert numbers into a BST one by one, do one in-order traversal, and they are sorted.",
 "predict": "What is printed?",
 "ask": "If you use pre-order traversal instead, is it still from small to large?",
 "code": TH_EN+TNODE_EN+"\n\n"+TINS_EN+"\n\n"+TIN_EN+"\n\nint main() {\n    Node *root = nullptr;              // the tree starts empty\n    int a[7] = {5, 3, 8, 1, 4, 7, 9};  // the numbers put in, in order\n    int i;                             // which one\n\n    for (i = 0; i < 7; i++) {\n        root = insert(root, a[i]);\n    }\n    inorder(root);\n    cout << endl;\n    return 0;\n}"
 },
-"16-13": {
+"16-17": {
 "title": "Building a Max Heap",
 "isNew": "starting from the last parent, let each position sink down",
 "uses": "2i + 1 and 2i + 2 in 16-2, functions",
@@ -125,13 +125,47 @@ Object.assign(LESSON_EN,{
 "ask": "Check with the method in 16-2: in the built array, is every parent bigger than its children?",
 "code": TH_EN+TSIFT_EN+"\n\nint main() {\n    int a[7] = {4, 10, 3, 5, 1, 8, 2};  // not a heap yet\n    int n = 7;                         // how many\n    int start;                         // which parent to start sinking from\n    int i;                             // for printing\n\n    for (start = n / 2 - 1; start >= 0; start--) {\n        siftDown(a, n, start);\n    }\n    for (i = 0; i < n; i++) {\n        cout << a[i] << \" \";\n    }\n    cout << endl;\n    return 0;\n}"
 },
-"16-14": {
+"16-18": {
 "title": "C++'s Built-in priority_queue",
 "isNew": "#include <queue>: things you push are sorted automatically, and top() is always the largest",
-"uses": "the max heap in 16-13",
+"uses": "the max heap in 16-17",
 "goal": "In the last lesson, you wrote a max heap yourself. C++ has one built in: a priority_queue has a heap inside it. push puts things in, top() looks at the largest, pop() takes the largest away, and empty() and size() work like a stack.\nTo take the smallest each time, declare it as priority_queue<int, vector<int>, greater<int>>. APCS programming problems often use it to \"pick the largest or smallest each time\".\n(This website draws it as a sorted row, with the top at the front. Inside real C++, it is stored as a heap.)",
 "predict": "In what order does the first while loop print?",
 "ask": "How is this related to heap sort in chapter 14?",
 "code": "#include <iostream>\n#include <queue>\nusing namespace std;\n\nint main() {\n    priority_queue<int> pq;  // the largest is on top\n    priority_queue<int, vector<int>, greater<int>> small;  // the smallest is on top\n    int x;  // the number read\n    \n    while (cin >> x) {\n        pq.push(x);\n        small.push(x);\n    }\n    while (!pq.empty()) {\n        cout << pq.top() << \" \";\n        pq.pop();\n    }\n    cout << endl;\n    cout << \"The smallest is \" << small.top() << endl;\n    return 0;\n}"
 }
+});
+
+/* ---------- 16-12 ～ 16-14：BST 的高度，三種存法 ---------- */
+Object.assign(LESSON_EN,{
+"16-12":{title:"BST Height ①: An Array, Find Children by Position i",isNew:"children at 2i + 1 and 2i + 2; 0 means empty",uses:"storing a binary tree in an array from 16-2, BST insertion from 16-9, height from 16-11",
+ goal:"The same problem is written with three ways of storing the tree, to see where each one goes wrong (16-12 to 16-14).\nThe first way follows 16-2: the whole tree is stored in one array, and the children of position i are at 2i + 1 and 2i + 2, with no pointers. Each number starts at the root (box 0): smaller goes left, equal or bigger goes right, and it is put in the first empty place it reaches. The number of levels walked is its level.\nHow is an empty place shown? This version uses 0. Run all three tests: two of them go wrong.\nNote: in this problem, \"height\" counts levels, so a tree with only the root has height 1. In 16-11, height counts edges, so a root alone has height 0. They differ by 1; check which one a problem means before you write the code.",
+ task:"Problem: input a list of integers, put them into a BST in order, and output how many levels the tree has.",
+ code:["#include <iostream>","using namespace std;","","int main() {","    const int SIZE = 15;    // how many boxes: at most 4 levels (1 + 2 + 4 + 8)","    int tree[SIZE] = {};    // tree[i]: the value at position i; 0 means empty","    int n;                  // the number read","    int cur;                // which box we are at now","    int level;              // which level we are on now","    int height = 0;         // how many levels the tree has","","    while (cin >> n) {","        cur = 0;","        level = 1;","        while (cur < SIZE && tree[cur] != 0) {","            if (n < tree[cur]) {","                cur = cur * 2 + 1;  // smaller: go to the left child","            } else {","                cur = cur * 2 + 2;  // equal or bigger: go to the right child","            }","            level++;","        }","        tree[cur] = n;","        height = max(height, level);","    }","    cout << height << endl;","    return 0;","}"].join("\n"),
+ tests:[{note:"3 levels: 50 → 30, 70 → 20, 40, 60, 80"},{note:"0 is the left child of 5, and 3 is the right child of 0: 3 levels"},{note:"it keeps growing to the right: 5 levels"}],
+ predict:"Test 2 has a 0. After it is put into the array, can you tell that the box is used?",
+ ask:"Why does test 3 go past the end of the array? How big must SIZE be to hold 5 numbers in increasing order? What about 100?"},
+"16-13":{title:"BST Height ②: A struct Remembers If a Box Is Used",isNew:"occupied: 0 no longer means empty",uses:"16-12, struct from 11-1",
+ goal:"16-12 uses 0 for an empty place, so the input 0 gives a wrong answer. Instead, each box holds a struct: val is the value, and occupied records \"whether something is in this box\". Set all of them to false at the start, and set it to true when something is put in. Now 0 and negative numbers work.\nBut test 3 still goes past the end of the array: the tree keeps growing to the right, and the rightmost position on level k is 2ᵏ − 2. The array must be huge, and most of it is empty.",
+ task:"Problem: the same as 16-12.",
+ code:["#include <iostream>","using namespace std;","","struct Node {","    int val;        // the value in this box","    bool occupied;  // whether something is in this box","};","","int main() {","    const int SIZE = 15;    // how many boxes: at most 4 levels","    Node tree[SIZE];        // each box is a Node","    int n;                  // the number read","    int cur;                // which box we are at now","    int level;              // which level we are on now","    int height = 0;         // how many levels the tree has","    int i;                  // for the loop","","    for (i = 0; i < SIZE; i++) {","        tree[i].occupied = false;  // every box is empty at the start","    }","    while (cin >> n) {","        cur = 0;","        level = 1;","        while (cur < SIZE && tree[cur].occupied) {","            if (n < tree[cur].val) {","                cur = cur * 2 + 1;  // smaller: go to the left child","            } else {","                cur = cur * 2 + 2;  // equal or bigger: go to the right child","            }","            level++;","        }","        tree[cur].val = n;","        tree[cur].occupied = true;","        height = max(height, level);","    }","    cout << height << endl;","    return 0;","}"].join("\n"),
+ tests:[{note:"3 levels: 50 → 30, 70 → 20, 40, 60, 80"},{note:"0 is the left child of 5, and 3 is the right child of 0: 3 levels"},{note:"it keeps growing to the right: 5 levels"}],
+ predict:"Is test 2 right this time? What about test 3?",
+ ask:"With 15 boxes, how many levels fit at most? If the input is 1000 numbers in increasing order, how many boxes are needed?"},
+"16-14":{title:"BST Height ③: A vector, Linked by Box Numbers",isNew:"the k-th number read goes in box k; left and right store the children's box numbers",uses:"16-13, vector from 5-7, BST insertion from 16-9, the array linked list from 11-11",
+ goal:"Stop placing nodes by \"position\": the k-th number read goes into box k of the vector. Each node stores two more numbers: left and right are the boxes of its left and right children, and -1 means no child.\nTo insert, start comparing at the root (box 0): if it should go left but left is -1, link the new node's box number there; otherwise move to the box in left and keep comparing. Going right works the same way.\nThis is really the pointer BST from 16-9, with \"addresses\" replaced by \"box numbers\". However lopsided the tree is, n numbers use only n boxes, and all three tests get AC.",
+ task:"Problem: the same as 16-12.",
+ code:["#include <iostream>","#include <vector>","using namespace std;","","struct Node {","    int val;    // the value of the node","    int left;   // which box of tree the left child is in; -1 means none","    int right;  // which box of tree the right child is in; -1 means none","};","","int main() {","    vector<Node> tree;      // nodes in the order they are read","    Node nd;                // the new node","    int x;                  // the number read","    int cur;                // which box of tree the new node is in","    int i;                  // which box we are comparing with now","    int level;              // which level the new node is on","    int height = 0;         // how many levels the tree has","","    while (cin >> x) {","        nd.val = x;","        nd.left = -1;","        nd.right = -1;","        tree.push_back(nd);","        cur = tree.size() - 1;","        i = 0;","        level = 1;","        while (cur != 0) {  // the root (box 0) does not need a place","            level++;","            if (x < tree[i].val) {","                if (tree[i].left == -1) {","                    tree[i].left = cur;   // the left is empty: link it","                    break;","                }","                i = tree[i].left;","            } else {","                if (tree[i].right == -1) {","                    tree[i].right = cur;  // the right is empty: link it","                    break;","                }","                i = tree[i].right;","            }","        }","        height = max(height, level);","    }","    cout << height << endl;","    return 0;","}"].join("\n"),
+ tests:[{note:"3 levels: 50 → 30, 70 → 20, 40, 60, 80"},{note:"0 is the left child of 5, and 3 is the right child of 0: 3 levels"},{note:"it keeps growing to the right: 5 levels"}],
+ predict:"In test 3, what are left and right of each node in tree?",
+ ask:"Compare it with the pointer version in 16-9: what does t->left match here? What does nullptr match?"}
+});
+
+/* ---------- 16-16：parent 陣列 ---------- */
+Object.assign(LESSON_EN,{
+"16-16":{title:"General Trees: A parent Array, Walking Up",isNew:"parent[i] records who the parent is: the node with no parent is the root; the number of steps up along parent is the depth",uses:"general trees from 16-15, while",
+ goal:"The same tree as 16-15, stored another way: each node records only \"who my parent is\". parent[i] is the parent of node i, and the root has no parent, so it gets -1.\nMany problems give \"the parent of each point\", or give lists of children without saying which node is the root. Then parent is very handy: to find the root, find the one whose parent is -1; to find the depth, walk up from the node to the root, and the number of steps is the depth. The depth of the deepest node is the height of the tree.\n16-15 counts down from the root; this lesson walks up from each node. Both give the same height.",
+ code:["#include <iostream>", "using namespace std;", "", "int main() {", "    int parent[7] = {-1, 0, 0, 0, 1, 1, 3};  // parent[i]: the parent of node i; -1 means no parent", "    int i;           // which node", "    int v;           // walking up: which node we are at now", "    int depth;       // how many steps node i walks up", "    int height = 0;  // the deepest depth is the height of the tree", "", "    for (i = 0; i < 7; i++) {", "        if (parent[i] == -1) {", "            cout << \"The root is \" << i << endl;", "        }", "    }", "    for (i = 0; i < 7; i++) {", "        v = i;", "        depth = 0;", "        while (parent[v] != -1) {", "            v = parent[v];  // walk up to the parent", "            depth++;", "        }", "        cout << \"Depth of \" << i << \": \" << depth << endl;", "        height = max(height, depth);", "    }", "    cout << \"Height: \" << height << endl;", "    return 0;", "}"].join("\n"),
+ predict:"Which node is the root? How many steps does node 6 walk up to reach the root?",
+ ask:"Between the lists of children in 16-15 and the parent array here, which makes it easier to answer \"who is the parent of node 4\"? Which makes it easier to answer \"how many children does node 1 have\"?"}
 });

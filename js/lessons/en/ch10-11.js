@@ -198,3 +198,12 @@ Object.assign(LESSON_EN,{
 "code": "#include <iostream>\n#include <list>\nusing namespace std;\n\nint main() {\n    list<int> l;  // C++'s built-in linked list\n    \n    l.push_back(2);   // add at the back\n    l.push_back(3);\n    l.push_front(1);  // insert at the front (you did this yourself in 11-8)\n    l.pop_front();    // delete the first one (you did this yourself in 11-9)\n    l.push_front(0);\n    for (int x : l) {\n        cout << x << \" \";\n    }\n    cout << endl;\n    return 0;\n}"
 }
 });
+
+/* ---------- 11-11：用陣列做鏈結串列 ---------- */
+Object.assign(LESSON_EN,{
+"11-11":{title:"A Linked List Made of Arrays: next Stores \"Which Box\"",isNew:"nxt[i] stores which box the next node is in, and -1 means the end; p = nxt[p] is p = p->next",uses:"walking through a list from 11-7, putting at the front from 11-8",
+ goal:"Before, nodes were made one by one and linked with arrows. Many OJ programs use two arrays instead: val[i] holds the data, and nxt[i] holds \"which box the next node is in\". -1 means the end, like nullptr. p = nxt[p] is p = p->next.\nLook closely: the order in the arrays (20, 10, 30, 5) is not the order of the list. You have to follow nxt to know what comes next. Putting a node at the front does not move any box; only nxt and head change.\nThe BST in 16-14 uses the same idea: arrows are replaced by \"which box\".",
+ code:["#include <iostream>", "using namespace std;", "", "int main() {", "    int val[10];  // val[i]: the data of the node in box i", "    int nxt[10];  // nxt[i]: which box the next node is in; -1 means the end", "    int head;     // which box the first node is in", "    int p;        // for walking: which box we are at now", "", "    val[0] = 20;", "    nxt[0] = 2;   // the node after 20 is in box 2", "    val[1] = 10;", "    nxt[1] = 0;   // the node after 10 is in box 0", "    val[2] = 30;", "    nxt[2] = -1;  // nothing comes after 30", "    head = 1;     // the list starts at box 1", "", "    val[3] = 5;   // put it at the front: the new node goes in box 3", "    nxt[3] = head;", "    head = 3;", "", "    p = head;", "    while (p != -1) {", "        cout << val[p] << \" \";", "        p = nxt[p];  // the same as p = p->next", "    }", "    cout << endl;", "    return 0;", "}"].join("\n"),
+ predict:"The arrays hold 20, 10, 30, 5 in that order. In what order is the list printed?",
+ ask:"To delete the first node, which variable do you change? Is the deleted box still in the array?"}
+});

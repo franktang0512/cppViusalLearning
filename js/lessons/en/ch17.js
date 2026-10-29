@@ -45,7 +45,7 @@ Object.assign(LESSON_EN,{
 "title": "Adjacency Lists",
 "isNew": "g[u] is u's list of neighbors: g[u].push_back(v)",
 "uses": "2D vectors (7-10), cin",
-"goal": "An adjacency list stores only \"the edges that really exist\": each point has its own list of neighbors. Store it with the 2D vector from lesson 7-10: g[u] is u's list of neighbors, and each edge is push_back-ed into it.\nAn undirected edge is still stored twice: add v to u's list, and also add u to v's list. g[u].size() is u's degree.",
+"goal": "An adjacency list stores only \"the edges that really exist\": each point has its own list of neighbors. Store it with the 2D vector from lesson 7-10: g[u] is u's list of neighbors, and each edge is push_back-ed into it.\nAn undirected edge is still stored twice: add v to u's list, and also add u to v's list. g[u].size() is u's degree.\nMany programs written by older students use vector<int> g[100]; instead. That is \"an array of 100 vectors\", not a 2D vector, but it is used in exactly the same way: g[u].push_back(v) and g[u].size() do not change. The only difference is that the array size must be fixed in advance.",
 "predict": "After reading, which points are in the list g[3]?",
 "ask": "What is the sum of the lengths of all the lists (g[i].size())? Is it the same as the sum of degrees in 17-1?",
 "code": "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;  // number of points, number of edges\n    int u, v;  // the two ends of an edge\n\n    cin >> n >> m;\n    vector<vector<int>> g(n);  // n neighbor lists, all empty at the start\n    for (int i = 0; i < m; i++) {\n        cin >> u >> v;\n        g[u].push_back(v);\n        g[v].push_back(u);\n    }\n    for (int i = 0; i < n; i++) {\n        cout << i << \"'s neighbors: \";\n        for (int x : g[i]) {\n            cout << x << \" \";\n        }\n        cout << endl;\n    }\n    return 0;\n}"
@@ -165,7 +165,7 @@ Object.assign(LESSON_EN,{
 {"note": "The top-left corner is closed in by walls, so there is no way out"}
 ]
 },
-"17-17": {
+"17-18": {
 "title": "Spanning Trees: The Tree a Traversal Leaves Behind",
 "isNew": "connects all points, exactly n − 1 edges, no cycles",
 "uses": "parent in 17-14, trees in 16-1",
@@ -174,4 +174,9 @@ Object.assign(LESSON_EN,{
 "ask": "Use the DFS in 17-7 instead, and record parent[v] = u before dfs(v). Does the tree that is kept look the same?",
 "code": "#include <iostream>\n#include <queue>\nusing namespace std;\n\n"+GMG_EN+"\n\nint main() {\n    bool vis[5] = {};  // visited yet?\n    int parent[5];      // which point v was reached from\n    int cnt = 0;        // how many edges are kept\n    queue<int> q;       // the queue for BFS\n\n    for (int i = 0; i < 5; i++) {\n        parent[i] = -1;\n    }\n    q.push(0);\n    vis[0] = true;\n    while (!q.empty()) {\n        int u = q.front();\n        q.pop();\n        for (int v = 0; v < 5; v++) {\n            if (g[u][v] == 1 && !vis[v]) {\n                vis[v] = true;\n                parent[v] = u;\n                cnt++;\n                q.push(v);\n            }\n        }\n    }\n    for (int v = 1; v < 5; v++) {\n        cout << parent[v] << \" - \" << v << endl;\n    }\n    cout << \"Total: \" << cnt << \" edges\" << endl;\n    return 0;\n}"
 }
+});
+
+/* ---------- 17-17：網格 BFS 用 pair ---------- */
+Object.assign(LESSON_EN,{
+"17-17":{title:"Grid BFS: pairs in the Queue",isNew:"pair<int, int> holds two values at once; q.push({r, c}), q.front().first, q.front().second",uses:"grid BFS in 17-16, struct in 11-1",goal:"17-16 has to turn (r, c) into one number before it fits in the queue, and split it back with / and % when it comes out. That is easy to get wrong. Many programs use pair instead: pair<int, int> is C++'s built-in struct with only two fields. The first field is called first, and the second is called second.\nEach box of queue<pair<int, int>> q; holds one cell: q.push({r, c}); puts it in, q.front().first is the row, and q.front().second is the column. The BFS part is exactly the same as 17-16; only putting cells in and taking them out is different.\npairs can also be compared, which 21-7 uses again.",task:"Problem: the same as 17-16.",predict:"Compare it with 17-16: does the dist table grow in a different order?",ask:"If the queue must remember a third value (for example, how many keys you have when you reach this cell), a pair is not enough. What can you do?",code:"#include <iostream>\n#include <queue>\nusing namespace std;\n\nint main() {\n    int a[5][5];        // the map: 0 is a path, 1 is a wall\n    int dist[5][5];     // the fewest steps to each cell; -1 means not reached yet\n    int dx[4] = {-1, 1, 0, 0}, dy[4] = {0, 0, -1, 1};  // up, down, left, right\n    int R, C;           // number of rows, number of columns\n    queue<pair<int, int>> q;  // holds cells (r, c)\n\n    cin >> R >> C;\n    for (int i = 0; i < R; i++) {\n        for (int j = 0; j < C; j++) {\n            cin >> a[i][j];\n            dist[i][j] = -1;\n        }\n    }\n    dist[0][0] = 0;\n    q.push({0, 0});\n    while (!q.empty()) {\n        int r = q.front().first, c = q.front().second;\n        q.pop();\n        for (int k = 0; k < 4; k++) {\n            int nr = r + dx[k], nc = c + dy[k];\n            if (nr >= 0 && nr < R && nc >= 0 && nc < C && a[nr][nc] == 0 && dist[nr][nc] == -1) {\n                dist[nr][nc] = dist[r][c] + 1;\n                q.push({nr, nc});\n            }\n        }\n    }\n    cout << dist[R - 1][C - 1] << endl;\n    return 0;\n}"}
 });
